@@ -1,0 +1,442 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: loki-operator-manager
+objects:
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: alertingrule-editor-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - alertingrules
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - alertingrules/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: alertingrule-viewer-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - alertingrules
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - alertingrules/status
+    verbs:
+    - get
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    creationTimestamp: null
+    name: controller-manager-metrics-reader
+    namespace: rhobs-stage
+- apiVersion: v1
+  kind: Service
+  metadata:
+    creationTimestamp: null
+    labels:
+      app.kubernetes.io/component: metrics
+    name: controller-manager-metrics-service
+    namespace: rhobs-stage
+  spec:
+    ports:
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: https
+    selector:
+      name: loki-operator-controller-manager
+  status:
+    loadBalancer: {}
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    creationTimestamp: null
+    name: controller-manager-read-metrics
+    namespace: rhobs-stage
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: metrics-reader
+  subjects:
+  - kind: ServiceAccount
+    name: controller-manager-metrics-reader
+    namespace: rhobs-stage
+- apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    creationTimestamp: null
+    labels:
+      control-plane: controller-manager
+    name: controller-manager
+    namespace: rhobs-stage
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        name: loki-operator-controller-manager
+    strategy: {}
+    template:
+      metadata:
+        annotations:
+          kubectl.kubernetes.io/default-container: manager
+        creationTimestamp: null
+        labels:
+          name: loki-operator-controller-manager
+      spec:
+        containers:
+        - command:
+          - /manager
+          image: quay.io/redhat-user-workloads/obs-logging-tenant/loki-operator-v6-3:ab233daeab6b9808a6c216c75cc5db449486f87e
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          name: manager
+          ports:
+          - containerPort: 8080
+            name: metrics
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources: {}
+        nodeSelector:
+          kubernetes.io/os: linux
+        serviceAccountName: controller-manager
+        terminationGracePeriodSeconds: 10
+  status: {}
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    creationTimestamp: null
+    name: controller-manager
+    namespace: rhobs-stage
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    creationTimestamp: null
+    name: leader-election-role
+    namespace: rhobs-stage
+  rules:
+  - apiGroups:
+    - ""
+    - coordination.k8s.io
+    resources:
+    - configmaps
+    - leases
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - ""
+    resources:
+    - events
+    verbs:
+    - create
+    - patch
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    creationTimestamp: null
+    name: leader-election-rolebinding
+    namespace: rhobs-stage
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: leader-election-role
+  subjects:
+  - kind: ServiceAccount
+    name: controller-manager
+    namespace: rhobs-stage
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: lokistack-editor-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - lokistacks
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - lokistacks/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: lokistack-manager
+  rules:
+  - nonResourceURLs:
+    - /api/v2/alerts
+    verbs:
+    - create
+  - apiGroups:
+    - ""
+    resources:
+    - configmaps
+    - endpoints
+    - nodes
+    verbs:
+    - get
+    - list
+    - watch
+    - patch
+    - update
+  - apiGroups:
+    - route.openshift.io
+    resources:
+    - routes
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - update
+    - watch
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    creationTimestamp: null
+    name: lokistack-manager
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: lokistack-manager
+  subjects:
+  - kind: ServiceAccount
+    name: controller-manager
+    namespace: rhobs-stage
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: lokistack-viewer-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - lokistacks
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - lokistacks/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: metrics-reader
+  rules:
+  - nonResourceURLs:
+    - /metrics
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: Role
+  metadata:
+    annotations:
+      include.release.openshift.io/self-managed-high-availability: "true"
+      include.release.openshift.io/single-node-developer: "true"
+    creationTimestamp: null
+    name: prometheus
+    namespace: rhobs-stage
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - services
+    - endpoints
+    - pods
+    verbs:
+    - get
+    - list
+    - watch
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    annotations:
+      include.release.openshift.io/self-managed-high-availability: "true"
+      include.release.openshift.io/single-node-developer: "true"
+    creationTimestamp: null
+    name: prometheus
+    namespace: rhobs-stage
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: prometheus
+  subjects:
+  - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: openshift-monitoring
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: proxy-role
+  rules:
+  - apiGroups:
+    - authentication.k8s.io
+    resources:
+    - tokenreviews
+    verbs:
+    - create
+  - apiGroups:
+    - authorization.k8s.io
+    resources:
+    - subjectaccessreviews
+    verbs:
+    - create
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    creationTimestamp: null
+    name: proxy-rolebinding
+    namespace: rhobs-stage
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: proxy-role
+  subjects:
+  - kind: ServiceAccount
+    name: controller-manager
+    namespace: rhobs-stage
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: recordingrule-editor-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - recordingrules
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - recordingrules/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: recordingrule-viewer-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - recordingrules
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - recordingrules/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: rulerconfig-editor-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - rulerconfigs
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - rulerconfigs/status
+    verbs:
+    - get
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    creationTimestamp: null
+    name: rulerconfig-viewer-role
+  rules:
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - rulerconfigs
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - loki.grafana.com
+    resources:
+    - rulerconfigs/status
+    verbs:
+    - get
