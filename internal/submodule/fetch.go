@@ -37,13 +37,14 @@ type info struct {
 
 // Parse the Info into a git hash for the submodule
 func (i Info) Parse() (string, error) {
-	// If a specific commit is provided, use it directly
-	if i.Commit != "" {
-		return i.Commit, nil
+	// Use commit if specified, otherwise fall back to branch
+	ref := i.Commit
+	if ref == "" {
+		ref = i.Branch
 	}
 
-	// Otherwise, parse from the branch
-	infos, err := getSubmoduleCommits(i.URL, i.Branch)
+	// Always parse submodule commits to get the actual submodule commit hash
+	infos, err := getSubmoduleCommits(i.URL, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse submodule commits: %w", err)
 	}
@@ -67,11 +68,39 @@ func (i Info) FetchYAMLs() ([]runtime.Object, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get submodule commit: %w", err)
 	}
+	fmt.Printf("DEBUG: Got submodule commit: %s\n", commit)
 
 	// Get the submodule URL from .gitmodules
 	submoduleURL, err := i.getSubmoduleURL()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get submodule URL: %w", err)
+	}
+	fmt.Printf("DEBUG: Got submodule URL: %s\n", submoduleURL)
+
+	// First check root directory to see what's in the repo
+	rootFiles, err := i.fetchDirectoryContents(submoduleURL, commit, "")
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch root directory: %v\n", err)
+	} else {
+		fmt.Printf("DEBUG: Found %d items in root directory\n", len(rootFiles))
+		limit := len(rootFiles)
+		if limit > 10 {
+			limit = 10
+		}
+		for _, f := range rootFiles[:limit] { // limit to first 10
+			fmt.Printf("DEBUG: - %s (%s)\n", f.Name, f.Type)
+		}
+	}
+
+	// First check if operator directory exists
+	operatorFiles, err := i.fetchDirectoryContents(submoduleURL, commit, "operator")
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to fetch operator directory: %v\n", err)
+	} else {
+		fmt.Printf("DEBUG: Found %d items in operator directory\n", len(operatorFiles))
+		for _, f := range operatorFiles {
+			fmt.Printf("DEBUG: - %s (%s)\n", f.Name, f.Type)
+		}
 	}
 
 	// Fetch directory contents from the submodule repository
@@ -79,6 +108,7 @@ func (i Info) FetchYAMLs() ([]runtime.Object, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch directory contents: %w", err)
 	}
+	fmt.Printf("DEBUG: Found %d files in directory %s\n", len(files), i.PathToYAMLS)
 
 	var objs []runtime.Object
 	for _, file := range files {
@@ -263,13 +293,16 @@ type FileInfo struct {
 
 // getSubmoduleURL gets the URL for the specified submodule from .gitmodules
 func (i Info) getSubmoduleURL() (string, error) {
-	// If we have a specific commit, we still need the branch to fetch .gitmodules
-	// The branch is used to get the .gitmodules file, not the submodule commit
-	if i.Branch == "" {
-		return "", fmt.Errorf("branch is required to fetch .gitmodules file")
+	// Use commit if specified, otherwise fall back to branch
+	ref := i.Commit
+	if ref == "" {
+		if i.Branch == "" {
+			return "", fmt.Errorf("either commit or branch is required to fetch .gitmodules file")
+		}
+		ref = i.Branch
 	}
 
-	infos, err := getSubmoduleCommits(i.URL, i.Branch)
+	infos, err := getSubmoduleCommits(i.URL, ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to get submodule commits: %w", err)
 	}

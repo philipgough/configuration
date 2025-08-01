@@ -14,6 +14,7 @@ import (
 	"github.com/philipgough/mimic/encoding"
 	"github.com/rhobs/configuration/internal/submodule"
 
+	lokiv1 "github.com/grafana/loki/operator/apis/loki/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -35,7 +36,12 @@ type (
 const (
 	templatePath         = "resources"
 	templateServicesPath = "services"
+	namePrefix           = "loki-"
 )
+
+func addLokiPrefix(name string) string {
+	return namePrefix + name
+}
 
 func generator(component string) *mimic.Generator {
 	gen := &mimic.Generator{}
@@ -50,6 +56,10 @@ func (l Logs) Operator() {
 	operator(tag)
 }
 
+func (l Logs) LokiStack() {
+	lokiStack()
+}
+
 func crds(tag string) {
 	repoURL := "https://gitlab.cee.redhat.com/openshift-logging/konflux-log-storage"
 	submodulePath := "loki-operator"
@@ -62,11 +72,15 @@ func crds(tag string) {
 		PathToYAMLS:   "operator/config/crd/bases",
 	}
 
+	fmt.Printf("Fetching CRDs from: %s, commit: %s, submodule: %s, path: %s\n", repoURL, tag, submodulePath, "operator/config/crd/bases")
+
 	objs, err := info.FetchYAMLs()
 	if err != nil {
 		fmt.Printf("Error fetching YAML files: %v\n", err)
 		return
 	}
+
+	fmt.Printf("Successfully fetched %d CRD objects\n", len(objs))
 
 	gen := generator("loki-operator-crds")
 	gen.Add("crds.yaml", encoding.GhodssYAML(
@@ -90,6 +104,36 @@ func operator(tag string) {
 		),
 	))
 
+	gen.Generate()
+}
+
+func lokiStack() {
+	namespace := "rhobs-stage"
+	gen := generator("loki-stack")
+
+	lokiStackResources := []runtime.Object{
+		NewLokiStackStorageSecret(namespace),
+		NewLokiStack(namespace),
+	}
+
+	gen.Add("lokistack.yaml", encoding.GhodssYAML(
+		openshift.WrapInTemplate(
+			lokiStackResources,
+			metav1.ObjectMeta{Name: "loki-stack"},
+			[]templatev1.Parameter{
+				{Name: "LOKI_SIZE", DisplayName: "LokiStack Size", Value: "1x.medium", Required: true},
+				{Name: "LOKI_STORAGE_CLASS", DisplayName: "Storage Class", Value: "gp2", Required: true},
+				{Name: "LOKI_TENANT_MODE", DisplayName: "Tenant Mode", Value: "openshift-logging", Required: true},
+				{Name: "LOKI_STORAGE_SECRET_NAME", DisplayName: "Storage Secret Name", Value: "loki-storage", Required: true},
+				{Name: "LOKI_STORAGE_SECRET_TYPE", DisplayName: "Storage Secret Type", Value: "s3", Required: true},
+				{Name: "ACCESS_KEY_ID", DisplayName: "S3 Access Key ID", Required: true},
+				{Name: "SECRET_ACCESS_KEY", DisplayName: "S3 Secret Access Key", Required: true},
+				{Name: "S3_BUCKET_NAME", DisplayName: "S3 Bucket Name", Required: true},
+				{Name: "S3_BUCKET_ENDPOINT", DisplayName: "S3 Bucket Endpoint", Required: true},
+				{Name: "S3_BUCKET_REGION", DisplayName: "S3 Bucket Region", Value: "us-east-1", Required: true},
+			},
+		),
+	))
 	gen.Generate()
 }
 
@@ -130,7 +174,7 @@ func NewControllerManagerDeployment(namespace, tag string) *appsv1.Deployment {
 			Kind:       "Deployment",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "controller-manager",
+			Name:      "loki-operator",
 			Namespace: namespace,
 			Labels:    map[string]string{"control-plane": "controller-manager"},
 		},
@@ -143,7 +187,7 @@ func NewControllerManagerDeployment(namespace, tag string) *appsv1.Deployment {
 					Labels:      map[string]string{"name": "loki-operator-controller-manager"},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "controller-manager",
+					ServiceAccountName: addLokiPrefix("controller-manager"),
 					NodeSelector:       map[string]string{"kubernetes.io/os": "linux"},
 					Containers: []corev1.Container{{
 						Name:            "manager",
@@ -151,16 +195,6 @@ func NewControllerManagerDeployment(namespace, tag string) *appsv1.Deployment {
 						ImagePullPolicy: corev1.PullIfNotPresent,
 						Command:         []string{"/manager"},
 						Ports:           []corev1.ContainerPort{{Name: "metrics", ContainerPort: 8080}},
-						LivenessProbe: &corev1.Probe{
-							ProbeHandler:        corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/healthz", Port: intstr.FromInt(8081)}},
-							InitialDelaySeconds: 15,
-							PeriodSeconds:       20,
-						},
-						ReadinessProbe: &corev1.Probe{
-							ProbeHandler:        corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/readyz", Port: intstr.FromInt(8081)}},
-							InitialDelaySeconds: 5,
-							PeriodSeconds:       10,
-						},
 					}},
 					TerminationGracePeriodSeconds: ptr.To(int64(10)),
 				},
@@ -178,7 +212,7 @@ func NewServiceAccountControllerManager(namespace string) *corev1.ServiceAccount
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "controller-manager",
+			Name:      addLokiPrefix("controller-manager"),
 			Namespace: namespace,
 		},
 	}
@@ -193,22 +227,119 @@ func NewClusterRoleLokiStackManager() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "lokistack-manager",
+			Name: addLokiPrefix("lokistack-manager"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
 				NonResourceURLs: []string{"/api/v2/alerts"},
 				Verbs:           []string{"create"},
 			},
+			// Core Kubernetes resources
 			{
 				APIGroups: []string{""},
-				Resources: []string{"configmaps", "endpoints", "nodes"},
-				Verbs:     []string{"get", "list", "watch", "patch", "update"},
+				Resources: []string{
+					"configmaps",
+					"endpoints",
+					"nodes",
+					"serviceaccounts",
+					"services",
+					"secrets",
+					"pods",
+					"namespaces",
+				},
+				Verbs: []string{"get", "list", "watch", "create", "update", "patch", "delete"},
 			},
+			// Core Kubernetes resources finalizers
+			{
+				APIGroups: []string{""},
+				Resources: []string{
+					"configmaps/finalizers",
+					"serviceaccounts/finalizers",
+					"services/finalizers",
+					"secrets/finalizers",
+				},
+				Verbs: []string{"update"},
+			},
+			// Apps resources
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments", "statefulsets"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			// Apps resources finalizers
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments/finalizers", "statefulsets/finalizers"},
+				Verbs:     []string{"update"},
+			},
+			// RBAC resources
+			{
+				APIGroups: []string{"rbac.authorization.k8s.io"},
+				Resources: []string{"roles", "rolebindings", "clusterroles", "clusterrolebindings"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			// RBAC resources finalizers
+			{
+				APIGroups: []string{"rbac.authorization.k8s.io"},
+				Resources: []string{"roles/finalizers", "rolebindings/finalizers", "clusterroles/finalizers", "clusterrolebindings/finalizers"},
+				Verbs:     []string{"update"},
+			},
+			// Networking resources
+			{
+				APIGroups: []string{"networking.k8s.io"},
+				Resources: []string{"ingresses"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			// Networking resources finalizers
+			{
+				APIGroups: []string{"networking.k8s.io"},
+				Resources: []string{"ingresses/finalizers"},
+				Verbs:     []string{"update"},
+			},
+			// PodDisruptionBudgets
+			{
+				APIGroups: []string{"policy"},
+				Resources: []string{"poddisruptionbudgets"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			// OpenShift route resources
 			{
 				APIGroups: []string{"route.openshift.io"},
 				Resources: []string{"routes"},
 				Verbs:     []string{"create", "delete", "get", "list", "update", "watch"},
+			},
+			// Loki custom resources
+			{
+				APIGroups: []string{"loki.grafana.com"},
+				Resources: []string{
+					"lokistacks",
+					"rulerconfigs",
+					"recordingrules",
+					"alertingrules",
+				},
+				Verbs: []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+			},
+			// Loki custom resources status
+			{
+				APIGroups: []string{"loki.grafana.com"},
+				Resources: []string{
+					"lokistacks/status",
+					"rulerconfigs/status",
+					"recordingrules/status",
+					"alertingrules/status",
+				},
+				Verbs: []string{"get", "update", "patch"},
+			},
+			// Loki custom resources finalizers
+			{
+				APIGroups: []string{"loki.grafana.com"},
+				Resources: []string{
+					"lokistacks/finalizers",
+					"rulerconfigs/finalizers",
+					"recordingrules/finalizers",
+					"alertingrules/finalizers",
+				},
+				Verbs: []string{"update"},
 			},
 		},
 	}
@@ -223,17 +354,17 @@ func NewClusterRoleBindingLokiStackManager(namespace string) *rbacv1.ClusterRole
 			Kind:       "ClusterRoleBinding",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "lokistack-manager",
+			Name: addLokiPrefix("lokistack-manager"),
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
-			Name:      "controller-manager",
+			Name:      addLokiPrefix("controller-manager"),
 			Namespace: namespace,
 		}},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.SchemeGroupVersion.Group,
 			Kind:     "ClusterRole",
-			Name:     "lokistack-manager",
+			Name:     addLokiPrefix("lokistack-manager"),
 		},
 	}
 }
@@ -247,7 +378,7 @@ func NewLokiStackEditorClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "lokistack-editor-role",
+			Name: addLokiPrefix("lokistack-editor-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -273,7 +404,7 @@ func NewLokiStackViewerClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "lokistack-viewer-role",
+			Name: addLokiPrefix("lokistack-viewer-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -299,7 +430,7 @@ func NewRulerConfigViewerClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "rulerconfig-viewer-role",
+			Name: addLokiPrefix("rulerconfig-viewer-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -325,7 +456,7 @@ func NewRulerConfigEditorClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "rulerconfig-editor-role",
+			Name: addLokiPrefix("rulerconfig-editor-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -351,7 +482,7 @@ func NewRecordingRuleViewerClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "recordingrule-viewer-role",
+			Name: addLokiPrefix("recordingrule-viewer-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -377,7 +508,7 @@ func NewRecordingRuleEditorClusterRole() *rbacv1.ClusterRole {
 			Kind:       "ClusterRole",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "recordingrule-editor-role",
+			Name: addLokiPrefix("recordingrule-editor-role"),
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -400,7 +531,7 @@ func NewAlertingRuleViewerClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRole"},
-		ObjectMeta: metav1.ObjectMeta{Name: "alertingrule-viewer-role"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("alertingrule-viewer-role")},
 		Rules: []rbacv1.PolicyRule{
 			{APIGroups: []string{"loki.grafana.com"}, Resources: []string{"alertingrules"}, Verbs: []string{"get", "list", "watch"}},
 			{APIGroups: []string{"loki.grafana.com"}, Resources: []string{"alertingrules/status"}, Verbs: []string{"get"}},
@@ -413,7 +544,7 @@ func NewAlertingRuleViewerClusterRole() *rbacv1.ClusterRole {
 func NewAlertingRuleEditorClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRole"},
-		ObjectMeta: metav1.ObjectMeta{Name: "alertingrule-editor-role"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("alertingrule-editor-role")},
 		Rules: []rbacv1.PolicyRule{
 			{APIGroups: []string{"loki.grafana.com"}, Resources: []string{"alertingrules"}, Verbs: []string{"create", "delete", "get", "list", "patch", "update", "watch"}},
 			{APIGroups: []string{"loki.grafana.com"}, Resources: []string{"alertingrules/status"}, Verbs: []string{"get"}},
@@ -427,7 +558,7 @@ func NewPrometheusRole(namespace string) *rbacv1.Role {
 	return &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "Role"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prometheus",
+			Name:      addLokiPrefix("prometheus"),
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"include.release.openshift.io/self-managed-high-availability": "true",
@@ -444,7 +575,7 @@ func NewPrometheusRoleBinding(namespace string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prometheus",
+			Name:      addLokiPrefix("prometheus"),
 			Namespace: namespace,
 			Annotations: map[string]string{
 				"include.release.openshift.io/self-managed-high-availability": "true",
@@ -452,7 +583,7 @@ func NewPrometheusRoleBinding(namespace string) *rbacv1.RoleBinding {
 			},
 		},
 		Subjects: []rbacv1.Subject{{Kind: "ServiceAccount", Name: "prometheus-k8s", Namespace: "openshift-monitoring"}},
-		RoleRef:  rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "Role", Name: "prometheus"},
+		RoleRef:  rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "Role", Name: addLokiPrefix("prometheus")},
 	}
 }
 
@@ -461,7 +592,7 @@ func NewPrometheusRoleBinding(namespace string) *rbacv1.RoleBinding {
 func NewLeaderElectionRole(namespace string) *rbacv1.Role {
 	return &rbacv1.Role{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "Role"},
-		ObjectMeta: metav1.ObjectMeta{Name: "leader-election-role", Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("leader-election-role"), Namespace: namespace},
 		Rules: []rbacv1.PolicyRule{
 			{APIGroups: []string{"", "coordination.k8s.io"}, Resources: []string{"configmaps", "leases"}, Verbs: []string{"get", "list", "watch", "create", "update", "patch", "delete"}},
 			{APIGroups: []string{""}, Resources: []string{"events"}, Verbs: []string{"create", "patch"}},
@@ -474,9 +605,9 @@ func NewLeaderElectionRole(namespace string) *rbacv1.Role {
 func NewLeaderElectionRoleBinding(namespace string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "RoleBinding"},
-		ObjectMeta: metav1.ObjectMeta{Name: "leader-election-rolebinding", Namespace: namespace},
-		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "controller-manager", Namespace: namespace}},
-		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "Role", Name: "leader-election-role"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("leader-election-rolebinding"), Namespace: namespace},
+		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: addLokiPrefix("controller-manager"), Namespace: namespace}},
+		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "Role", Name: addLokiPrefix("leader-election-role")},
 	}
 }
 
@@ -485,7 +616,7 @@ func NewLeaderElectionRoleBinding(namespace string) *rbacv1.RoleBinding {
 func NewAuthProxyClientServiceAccount(namespace string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		TypeMeta:   metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "ServiceAccount"},
-		ObjectMeta: metav1.ObjectMeta{Name: "controller-manager-metrics-reader", Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("controller-manager-metrics-reader"), Namespace: namespace},
 	}
 }
 
@@ -494,7 +625,7 @@ func NewAuthProxyClientServiceAccount(namespace string) *corev1.ServiceAccount {
 func NewAuthProxyClientClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRole"},
-		ObjectMeta: metav1.ObjectMeta{Name: "metrics-reader"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("metrics-reader")},
 		Rules:      []rbacv1.PolicyRule{{NonResourceURLs: []string{"/metrics"}, Verbs: []string{"get"}}},
 	}
 }
@@ -504,9 +635,9 @@ func NewAuthProxyClientClusterRole() *rbacv1.ClusterRole {
 func NewAuthProxyClientClusterRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRoleBinding"},
-		ObjectMeta: metav1.ObjectMeta{Name: "controller-manager-read-metrics", Namespace: namespace},
-		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "controller-manager-metrics-reader", Namespace: namespace}},
-		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "ClusterRole", Name: "metrics-reader"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("controller-manager-read-metrics"), Namespace: namespace},
+		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: addLokiPrefix("controller-manager-metrics-reader"), Namespace: namespace}},
+		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "ClusterRole", Name: addLokiPrefix("metrics-reader")},
 	}
 }
 
@@ -515,7 +646,7 @@ func NewAuthProxyClientClusterRoleBinding(namespace string) *rbacv1.ClusterRoleB
 func NewAuthProxyRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRole"},
-		ObjectMeta: metav1.ObjectMeta{Name: "proxy-role"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("proxy-role")},
 		Rules: []rbacv1.PolicyRule{
 			{APIGroups: []string{"authentication.k8s.io"}, Resources: []string{"tokenreviews"}, Verbs: []string{"create"}},
 			{APIGroups: []string{"authorization.k8s.io"}, Resources: []string{"subjectaccessreviews"}, Verbs: []string{"create"}},
@@ -528,9 +659,9 @@ func NewAuthProxyRole() *rbacv1.ClusterRole {
 func NewAuthProxyRoleBinding(namespace string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta:   metav1.TypeMeta{APIVersion: rbacv1.SchemeGroupVersion.String(), Kind: "ClusterRoleBinding"},
-		ObjectMeta: metav1.ObjectMeta{Name: "proxy-rolebinding", Namespace: namespace},
-		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: "controller-manager", Namespace: namespace}},
-		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "ClusterRole", Name: "proxy-role"},
+		ObjectMeta: metav1.ObjectMeta{Name: addLokiPrefix("proxy-rolebinding"), Namespace: namespace},
+		Subjects:   []rbacv1.Subject{{Kind: "ServiceAccount", Name: addLokiPrefix("controller-manager"), Namespace: namespace}},
+		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.SchemeGroupVersion.Group, Kind: "ClusterRole", Name: addLokiPrefix("proxy-role")},
 	}
 }
 
@@ -540,7 +671,7 @@ func NewAuthProxyService(namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{APIVersion: corev1.SchemeGroupVersion.String(), Kind: "Service"},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "controller-manager-metrics-service",
+			Name:      addLokiPrefix("controller-manager-metrics-service"),
 			Namespace: namespace,
 			Labels:    map[string]string{"app.kubernetes.io/component": "metrics"},
 		},
@@ -548,6 +679,62 @@ func NewAuthProxyService(namespace string) *corev1.Service {
 			Selector: map[string]string{"name": "loki-operator-controller-manager"},
 			Ports: []corev1.ServicePort{
 				{Name: "https", Protocol: corev1.ProtocolTCP, Port: 8443, TargetPort: intstr.FromString("https")},
+			},
+		},
+	}
+}
+
+// NewLokiStackStorageSecret returns the Secret for Loki storage configuration
+func NewLokiStackStorageSecret(namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: corev1.SchemeGroupVersion.String(),
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "${LOKI_STORAGE_SECRET_NAME}",
+			Namespace: namespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"access_key_id":     "${ACCESS_KEY_ID}",
+			"access_key_secret": "${SECRET_ACCESS_KEY}",
+			"bucketnames":       "${S3_BUCKET_NAME}",
+			"endpoint":          "https://${S3_BUCKET_ENDPOINT}",
+			"region":            "${S3_BUCKET_REGION}",
+		},
+	}
+}
+
+// NewLokiStack returns a LokiStack custom resource
+func NewLokiStack(namespace string) *lokiv1.LokiStack {
+	return &lokiv1.LokiStack{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "loki.grafana.com/v1",
+			Kind:       "LokiStack",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "observatorium-lokistack",
+			Namespace: namespace,
+		},
+		Spec: lokiv1.LokiStackSpec{
+			ManagementState: lokiv1.ManagementStateManaged,
+			Size:            lokiv1.LokiStackSizeType("${LOKI_SIZE}"),
+			Storage: lokiv1.ObjectStorageSpec{
+				Schemas: []lokiv1.ObjectStorageSchema{
+					{
+						EffectiveDate: "2025-06-06",
+						Version:       lokiv1.ObjectStorageSchemaV13,
+					},
+				},
+				Secret: lokiv1.ObjectStorageSecretSpec{
+					Name: "${LOKI_STORAGE_SECRET_NAME}",
+					Type: lokiv1.ObjectStorageSecretType("${LOKI_STORAGE_SECRET_TYPE}"),
+				},
+			},
+			StorageClassName: "${LOKI_STORAGE_CLASS}",
+			Tenants: &lokiv1.TenantsSpec{
+				Mode: lokiv1.ModeType("${LOKI_TENANT_MODE}"),
 			},
 		},
 	}
