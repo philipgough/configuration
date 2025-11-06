@@ -96,7 +96,14 @@ objects:
         spec:
           serviceAccount:
             name: rhobs-logs
+          filters:
+            - name: cluster-id-filter
+              openshiftLabels:
+                cluster_id: "{{ fromCDLabel \"api.openshift.com/name\" }}"
+              type: openshiftLabels
           pipelines:
+            - filterRefs:
+                - cluster-id-filter
             - name: logging-to-loki
               inputRefs:
                 - application
