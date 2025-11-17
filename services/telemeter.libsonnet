@@ -44,6 +44,7 @@
                   '--log-level=' + config.telemeterServer.logLevel,
                   '--token-expire-seconds=' + config.telemeterServer.tokenExpireSeconds,
                   '--limit-bytes=5242880',
+                  '--limit-receive-bytes=140000',
                   '--forward-url=' + config.telemeterServer.telemeterForwardURL,
                 ],
               }
