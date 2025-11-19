@@ -44,10 +44,10 @@ func (s Sync) syncThanosOperator(ref string) error {
 			return fmt.Errorf("failed to get latest commit from main branch: %w", err)
 		}
 		ref = latestMainSHA
-		fmt.Printf("No ref provided, using latest commit from main: %s\n", ref)
+		fmt.Fprintf(os.Stdout, "No ref provided, using latest commit from main: %s\n", ref)
 	}
 
-	fmt.Printf("Syncing Thanos Operator at commit %s\n", ref)
+	fmt.Fprintf(os.Stdout, "Syncing Thanos Operator at commit %s\n", ref)
 	err := updateConst("ThanosOperatorVersion", "clusters/template.go", ref)
 	if err != nil {
 		return fmt.Errorf("failed to update Thanos Operator ref: %w", err)
@@ -68,7 +68,7 @@ func (s Sync) syncThanosOperator(ref string) error {
 		return fmt.Errorf("failed to parse submodule info: %w", err)
 	}
 
-	fmt.Printf("Parsed submodule ref: %+v\n", crdRef)
+	fmt.Fprintf(os.Stdout, "Parsed submodule ref: %+v\n", crdRef)
 	err = updateConst("thanosOperatorCRDRef", "magefiles/thanos-operator.go", crdRef)
 	if err != nil {
 		return fmt.Errorf("failed to update Thanos Operator CRD ref: %w", err)
@@ -88,7 +88,7 @@ func updateGoMod(crdRef string) error {
 
 	// Use go mod edit to update the thanos-operator dependency to the specific commit
 	cmd := exec.Command("go", "mod", "edit", "-require", fmt.Sprintf("%s@%s", thanosOperatorModule, crdRef))
-	fmt.Printf("Running: %s\n", cmd.String())
+	fmt.Fprintf(os.Stdout, "Running: %s\n", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -97,14 +97,14 @@ func updateGoMod(crdRef string) error {
 
 	// Run go mod tidy to clean up
 	cmd = exec.Command("go", "mod", "tidy")
-	fmt.Printf("Running: %s\n", cmd.String())
+	fmt.Fprintf(os.Stdout, "Running: %s\n", cmd.String())
 
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to run go mod tidy: %w\nOutput: %s", err, string(output))
 	}
 
-	fmt.Printf("Updated go.mod: %s@%s\n", thanosOperatorModule, crdRef)
+	fmt.Fprintf(os.Stdout, "Updated go.mod: %s@%s\n", thanosOperatorModule, crdRef)
 	return nil
 }
 
@@ -145,6 +145,6 @@ func updateConst(constName, inFile, newRef string) error {
 	if err := format.Node(file, fset, node); err != nil {
 		return fmt.Errorf("failed to write formatted code: %w", err)
 	}
-	fmt.Printf("Updated %s to: %s\n", constName, newRef)
+	fmt.Fprintf(os.Stdout, "Updated %s to: %s\n", constName, newRef)
 	return nil
 }
