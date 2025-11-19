@@ -40,22 +40,14 @@ const (
 	logsRouterService = "observatorium-lokistack-distributor-http"
 )
 
-type gatewayConfig struct {
-	namespace string
-	generator func(component string) *mimic.Generator
-	tenants   *corev1.Secret
-	amsURL    string
-	m         clusters.TemplateMaps
-}
-
 func (b Build) Gateway(config clusters.ClusterConfig) error {
 	fn := func() *mimic.Generator {
 		return b.generator(config, gatewayName)
 	}
-	return gatewayNew(config, fn)
+	return gateway(config, fn)
 }
 
-func gatewayNew(config clusters.ClusterConfig, fn builderBuilderGenFunc) error {
+func gateway(config clusters.ClusterConfig, fn builderBuilderGenFunc) error {
 	ns := config.Namespace
 	rbac, err := json.Marshal(config.GatewayConfig.RBAC())
 	if err != nil {
@@ -116,7 +108,7 @@ func (s Stage) Gateway() error {
 	fn := func() *mimic.Generator {
 		return s.generator(gatewayName)
 	}
-	return gatewayNew(conf, fn)
+	return gateway(conf, fn)
 }
 
 // Gateway Generates the Observatorium API Gateway configuration for the production environment.
@@ -134,7 +126,7 @@ func (p Production) Gateway() error {
 	fn := func() *mimic.Generator {
 		return p.generator(gatewayName)
 	}
-	return gatewayNew(conf, fn)
+	return gateway(conf, fn)
 }
 
 func gatewayLabels(m clusters.TemplateMaps) (labels map[string]string, selectorLabels map[string]string) {
