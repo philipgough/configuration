@@ -19,6 +19,37 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
+// resourcePair holds a core resource/workload/cr and its corresponding service monitor(s).
+type resourcePair struct {
+	core           runtime.Object
+	serviceMonitor []runtime.Object
+}
+
+func (rp resourcePair) GetCoreResource() runtime.Object {
+	return rp.core
+}
+
+func (rp resourcePair) GetServiceMonitor() []runtime.Object {
+	return rp.serviceMonitor
+}
+func (rps resourcePairs) GetCoreResources() []runtime.Object {
+	var cores []runtime.Object
+	for _, rp := range rps {
+		cores = append(cores, rp.GetCoreResource())
+	}
+	return cores
+}
+
+func (rps resourcePairs) GetServiceMonitors() []runtime.Object {
+	var sms []runtime.Object
+	for _, rp := range rps {
+		sms = append(sms, rp.GetServiceMonitor()...)
+	}
+	return sms
+}
+
+type resourcePairs []resourcePair
+
 const (
 	servingCertSecretNameAnnotation = "service.alpha.openshift.io/serving-cert-secret-name"
 	serviceRedirectAnnotation       = "serviceaccounts.openshift.io/oauth-redirectreference.application"

@@ -25,7 +25,9 @@ func (b Build) DefaultThanosStack(config clusters.ClusterConfig) {
 	gen := b.generator(config, "thanos-operator-default-cr")
 	var objs []runtime.Object
 
-	objs = append(objs, defaultQueryCR(config.Namespace, config.Templates, true)...)
+	queryResourcePairs := defaultQueryCR(config.Namespace, config.Templates, true)
+
+	objs = append(objs, queryResourcePairs.GetCoreResources()...)
 	objs = append(objs, defaultReceiveCR(config.Namespace, config.Templates))
 	objs = append(objs, defaultCompactCR(config.Namespace, config.Templates, true)...)
 	objs = append(objs, defaultRulerCR(config.Namespace, config.Templates))
@@ -57,7 +59,12 @@ func (b Build) DefaultThanosStack(config clusters.ClusterConfig) {
 			},
 		),
 	))
+	gen.Generate()
 
+	var sm []runtime.Object
+	sm = append(sm, queryResourcePairs.GetServiceMonitors()...)
+	gen = b.generator(config, "monitoring")
+	gen.Add("thanos-stack-service-monitor.yaml", encoding.GhodssYAML(sm))
 	gen.Generate()
 }
 
@@ -1184,7 +1191,7 @@ func receiveCR(namespace string, templates clusters.TemplateMaps) *v1alpha1.Than
 	}
 }
 
-func defaultQueryCR(namespace string, templates clusters.TemplateMaps, oauth bool, withAdditionalArgs ...string) []runtime.Object {
+func defaultQueryCR(namespace string, templates clusters.TemplateMaps, oauth bool, withAdditionalArgs ...string) resourcePairs {
 	var objs []runtime.Object
 
 	query := &v1alpha1.ThanosQuery{
@@ -1315,8 +1322,15 @@ func defaultQueryCR(namespace string, templates clusters.TemplateMaps, oauth boo
 		query.Spec.QueryFrontend.Additional.Volumes = append(query.Spec.QueryFrontend.Additional.Volumes, kghelpers.NewPodVolumeFromSecret("tls", "query-frontend-tls"))
 	}
 
+	resourcePairs := []resourcePair{
+		{
+			core:           query,
+			serviceMonitor: thanosQueryServiceMonitors(namespace),
+		},
+	}
+
 	objs = append(objs, query)
-	return objs
+	return resourcePairs
 }
 
 func defaultStoreCR(namespace string, templates clusters.TemplateMaps) runtime.Object {

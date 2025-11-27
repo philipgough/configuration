@@ -99,90 +99,10 @@ func thanosOperatorServiceMonitor(namespace string) []runtime.Object {
 	}
 }
 
-func createThanosServiceMonitors(namespace string) []runtime.Object {
+func thanosQueryServiceMonitors(namespace string) []runtime.Object {
 	interval30s := monitoringv1.Duration("30s")
 	metricsPath := "/metrics"
 	objs := []runtime.Object{
-		&monitoringv1.ServiceMonitor{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "monitoring.coreos.com/v1",
-				Kind:       "ServiceMonitor",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "thanos-compact-rhobs",
-				Namespace: openshiftCustomerMonitoringNamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/component":  "thanos-compactor",
-					"app.kubernetes.io/instance":   "thanos-compact-rhobs",
-					"app.kubernetes.io/managed-by": "thanos-operator",
-					"app.kubernetes.io/name":       "thanos-compact",
-					"app.kubernetes.io/part-of":    "thanos",
-					"operator.thanos.io/owner":     "rhobs",
-				},
-			},
-			Spec: monitoringv1.ServiceMonitorSpec{
-				Endpoints: []monitoringv1.Endpoint{
-					{
-						Interval: interval30s,
-						Path:     metricsPath,
-						Port:     "http",
-					},
-				},
-				NamespaceSelector: monitoringv1.NamespaceSelector{
-					MatchNames: []string{namespace},
-				},
-				Selector: metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app.kubernetes.io/component":  "thanos-compactor",
-						"app.kubernetes.io/instance":   "thanos-compact-rhobs",
-						"app.kubernetes.io/managed-by": "thanos-operator",
-						"app.kubernetes.io/name":       "thanos-compact",
-						"app.kubernetes.io/part-of":    "thanos",
-						"operator.thanos.io/owner":     "rhobs",
-					},
-				},
-			},
-		},
-		&monitoringv1.ServiceMonitor{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "monitoring.coreos.com/v1",
-				Kind:       "ServiceMonitor",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "thanos-compact-telemeter",
-				Namespace: openshiftCustomerMonitoringNamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/component":  "thanos-compactor",
-					"app.kubernetes.io/instance":   "thanos-compact-telemeter",
-					"app.kubernetes.io/managed-by": "thanos-operator",
-					"app.kubernetes.io/name":       "thanos-compact",
-					"app.kubernetes.io/part-of":    "thanos",
-					"operator.thanos.io/owner":     "telemeter",
-				},
-			},
-			Spec: monitoringv1.ServiceMonitorSpec{
-				Endpoints: []monitoringv1.Endpoint{
-					{
-						Interval: interval30s,
-						Path:     metricsPath,
-						Port:     "http",
-					},
-				},
-				NamespaceSelector: monitoringv1.NamespaceSelector{
-					MatchNames: []string{namespace},
-				},
-				Selector: metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app.kubernetes.io/component":  "thanos-compactor",
-						"app.kubernetes.io/instance":   "thanos-compact-telemeter",
-						"app.kubernetes.io/managed-by": "thanos-operator",
-						"app.kubernetes.io/name":       "thanos-compact",
-						"app.kubernetes.io/part-of":    "thanos",
-						"operator.thanos.io/owner":     "telemeter",
-					},
-				},
-			},
-		},
 		&monitoringv1.ServiceMonitor{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "monitoring.coreos.com/v1",
@@ -262,6 +182,98 @@ func createThanosServiceMonitors(namespace string) []runtime.Object {
 						"app.kubernetes.io/name":       "thanos-query-frontend",
 						"app.kubernetes.io/part-of":    "thanos",
 						"operator.thanos.io/owner":     "rhobs",
+					},
+				},
+			},
+		},
+	}
+	for _, obj := range objs {
+		obj.(*monitoringv1.ServiceMonitor).ObjectMeta.Labels["prometheus"] = "app-sre"
+	}
+	return objs
+}
+
+func createThanosServiceMonitors(namespace string) []runtime.Object {
+	interval30s := monitoringv1.Duration("30s")
+	metricsPath := "/metrics"
+
+	objs := []runtime.Object{
+		&monitoringv1.ServiceMonitor{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "monitoring.coreos.com/v1",
+				Kind:       "ServiceMonitor",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "thanos-compact-rhobs",
+				Namespace: openshiftCustomerMonitoringNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/component":  "thanos-compactor",
+					"app.kubernetes.io/instance":   "thanos-compact-rhobs",
+					"app.kubernetes.io/managed-by": "thanos-operator",
+					"app.kubernetes.io/name":       "thanos-compact",
+					"app.kubernetes.io/part-of":    "thanos",
+					"operator.thanos.io/owner":     "rhobs",
+				},
+			},
+			Spec: monitoringv1.ServiceMonitorSpec{
+				Endpoints: []monitoringv1.Endpoint{
+					{
+						Interval: interval30s,
+						Path:     metricsPath,
+						Port:     "http",
+					},
+				},
+				NamespaceSelector: monitoringv1.NamespaceSelector{
+					MatchNames: []string{namespace},
+				},
+				Selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app.kubernetes.io/component":  "thanos-compactor",
+						"app.kubernetes.io/instance":   "thanos-compact-rhobs",
+						"app.kubernetes.io/managed-by": "thanos-operator",
+						"app.kubernetes.io/name":       "thanos-compact",
+						"app.kubernetes.io/part-of":    "thanos",
+						"operator.thanos.io/owner":     "rhobs",
+					},
+				},
+			},
+		},
+		&monitoringv1.ServiceMonitor{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "monitoring.coreos.com/v1",
+				Kind:       "ServiceMonitor",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "thanos-compact-telemeter",
+				Namespace: openshiftCustomerMonitoringNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/component":  "thanos-compactor",
+					"app.kubernetes.io/instance":   "thanos-compact-telemeter",
+					"app.kubernetes.io/managed-by": "thanos-operator",
+					"app.kubernetes.io/name":       "thanos-compact",
+					"app.kubernetes.io/part-of":    "thanos",
+					"operator.thanos.io/owner":     "telemeter",
+				},
+			},
+			Spec: monitoringv1.ServiceMonitorSpec{
+				Endpoints: []monitoringv1.Endpoint{
+					{
+						Interval: interval30s,
+						Path:     metricsPath,
+						Port:     "http",
+					},
+				},
+				NamespaceSelector: monitoringv1.NamespaceSelector{
+					MatchNames: []string{namespace},
+				},
+				Selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app.kubernetes.io/component":  "thanos-compactor",
+						"app.kubernetes.io/instance":   "thanos-compact-telemeter",
+						"app.kubernetes.io/managed-by": "thanos-operator",
+						"app.kubernetes.io/name":       "thanos-compact",
+						"app.kubernetes.io/part-of":    "thanos",
+						"operator.thanos.io/owner":     "telemeter",
 					},
 				},
 			},
@@ -599,6 +611,8 @@ func createThanosServiceMonitors(namespace string) []runtime.Object {
 			},
 		},
 	}
+	objs = append(thanosQueryServiceMonitors(namespace), objs...)
+
 	for _, obj := range objs {
 		obj.(*monitoringv1.ServiceMonitor).ObjectMeta.Labels["prometheus"] = "app-sre"
 	}

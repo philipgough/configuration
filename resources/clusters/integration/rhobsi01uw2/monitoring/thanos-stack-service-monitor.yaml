@@ -1,0 +1,61 @@
+- apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    labels:
+      app.kubernetes.io/component: query-layer
+      app.kubernetes.io/instance: thanos-query-rhobs
+      app.kubernetes.io/managed-by: thanos-operator
+      app.kubernetes.io/name: thanos-query
+      app.kubernetes.io/part-of: thanos
+      operator.thanos.io/owner: rhobs
+      operator.thanos.io/query-api: "true"
+      prometheus: app-sre
+    name: thanos-query-rhobs
+    namespace: openshift-customer-monitoring
+  spec:
+    endpoints:
+    - interval: 30s
+      path: /metrics
+      port: http
+    namespaceSelector:
+      matchNames:
+      - rhobs-int
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: query-layer
+        app.kubernetes.io/instance: thanos-query-rhobs
+        app.kubernetes.io/managed-by: thanos-operator
+        app.kubernetes.io/name: thanos-query
+        app.kubernetes.io/part-of: thanos
+        operator.thanos.io/owner: rhobs
+        operator.thanos.io/query-api: "true"
+- apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    labels:
+      app.kubernetes.io/component: query-frontend
+      app.kubernetes.io/instance: thanos-query-frontend-rhobs
+      app.kubernetes.io/managed-by: thanos-operator
+      app.kubernetes.io/name: thanos-query-frontend
+      app.kubernetes.io/part-of: thanos
+      operator.thanos.io/owner: rhobs
+      operator.thanos.io/query-api: "true"
+      prometheus: app-sre
+    name: thanos-query-frontend-rhobs
+    namespace: openshift-customer-monitoring
+  spec:
+    endpoints:
+    - interval: 30s
+      path: /metrics
+      port: http
+    namespaceSelector:
+      matchNames:
+      - rhobs-int
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: query-frontend
+        app.kubernetes.io/instance: thanos-query-frontend-rhobs
+        app.kubernetes.io/managed-by: thanos-operator
+        app.kubernetes.io/name: thanos-query-frontend
+        app.kubernetes.io/part-of: thanos
+        operator.thanos.io/owner: rhobs
