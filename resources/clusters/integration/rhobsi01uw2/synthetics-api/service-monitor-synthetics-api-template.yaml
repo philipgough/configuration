@@ -1,3 +1,4 @@
+# This is a dirty hack commited manually. Please forgive me. Don't tell anyone. Don't delete until load test completion.
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
@@ -8,10 +9,6 @@ objects:
   metadata:
     labels:
       app.kubernetes.io/component: synthetics-api
-      app.kubernetes.io/instance: rhobs
-      app.kubernetes.io/name: synthetics-api
-      app.kubernetes.io/part-of: rhobs
-      app.kubernetes.io/version: cea7d4656cd0ad338e580cc6ba266264a9938e5c
       prometheus: app-sre
     name: synthetics-api
     namespace: openshift-customer-monitoring
@@ -27,7 +24,43 @@ objects:
     selector:
       matchLabels:
         app.kubernetes.io/component: synthetics-api
-        app.kubernetes.io/instance: rhobs
-        app.kubernetes.io/name: synthetics-api
-        app.kubernetes.io/part-of: rhobs
-        app.kubernetes.io/version: cea7d4656cd0ad338e580cc6ba266264a9938e5c
+- apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    labels:
+      app.kubernetes.io/component: synthetics-agent
+      prometheus: app-sre
+    name: synthetics-agent
+    namespace: openshift-customer-monitoring
+  spec:
+    endpoints:
+      - honorLabels: true
+        interval: 30s
+        path: /metrics
+        port: metrics
+    namespaceSelector:
+      matchNames:
+        - rhobs-int
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: synthetics-agent
+- apiVersion: monitoring.coreos.com/v1
+  kind: ServiceMonitor
+  metadata:
+    labels:
+      app.kubernetes.io/name: blackbox-exporter
+      prometheus: app-sre
+    name: synthetics-bb-exporter
+    namespace: openshift-customer-monitoring
+  spec:
+    endpoints:
+      - honorLabels: true
+        interval: 30s
+        path: /metrics
+        port: metrics
+    namespaceSelector:
+      matchNames:
+        - rhobs-int
+    selector:
+      matchLabels:
+        app.kubernetes.io/name: blackbox-exporter
