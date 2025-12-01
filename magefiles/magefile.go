@@ -77,6 +77,9 @@ var BuildStepFunctions = map[string]func(Build, clusters.ClusterConfig) error{
 		}
 		return nil
 	},
+	clusters.StepMetrics: func(b Build, cfg clusters.ClusterConfig) error {
+		return b.Metrics(cfg)
+	},
 }
 
 // ExecuteSteps executes a list of build steps for a cluster

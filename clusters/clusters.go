@@ -87,6 +87,7 @@ type BuildStep string
 
 // Available build steps
 const (
+	// Legacy individual steps (deprecated)
 	StepThanosOperatorCRDS = "thanos-operator-crds"
 	StepThanosOperator     = "thanos-operator"
 	StepDefaultThanosStack = "default-thanos-stack"
@@ -96,6 +97,10 @@ const (
 	StepDefaultLokiStack = "default-loki-stack"
 
 	StepServiceMonitors = "servicemonitors"
+
+	// New bundled service steps
+	StepMetrics = "metrics"
+	StepLogs    = "logs"
 
 	StepAlertmanager = "alertmanager"
 	StepSecrets      = "secrets"

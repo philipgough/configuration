@@ -1,0 +1,171 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosReceive
+metadata:
+  name: rhobs
+  namespace: rhobs-int
+spec:
+  featureGates:
+    serviceMonitor:
+      enable: false
+  ingesterSpec:
+    additionalArgs:
+    - |-
+      --tracing.config="config":
+        "sampler_param": 2
+        "sampler_type": "ratelimiting"
+        "service_name": "thanos-receive-ingester"
+      "type": "JAEGER"
+    additionalContainers:
+    - args:
+      - --reporter.grpc.host-port=dns:///otel-trace-writer-collector-headless.observatorium-tools.svc:14250
+      - --reporter.type=grpc
+      - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+      env:
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: POD
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      image: registry.redhat.io/rhosdt/jaeger-agent-rhel8:1.57.0-10
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 5
+        httpGet:
+          path: /
+          port: 14271
+          scheme: HTTP
+        initialDelaySeconds: 1
+      name: jaeger-agent
+      ports:
+      - containerPort: 5778
+        name: configs
+      - containerPort: 6831
+        name: jaeger-thrift
+      - containerPort: 14271
+        name: metrics
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 14271
+          scheme: HTTP
+        initialDelaySeconds: 1
+      resources:
+        limits:
+          cpu: 128m
+          memory: 128Mi
+        requests:
+          cpu: 32m
+          memory: 64Mi
+    defaultObjectStorageConfig:
+      key: thanos.yaml
+      name: default-thanos-bucket
+      optional: false
+    hashrings:
+    - asyncForwardWorkerCount: 50
+      baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+      externalLabels:
+        replica: $(POD_NAME)
+      imagePullPolicy: IfNotPresent
+      logFormat: logfmt
+      logLevel: info
+      name: default
+      objectStorageConfig:
+        key: thanos.yaml
+        name: default-thanos-bucket
+        optional: false
+      replicas: 3
+      resourceRequirements:
+        requests:
+          cpu: "2"
+          memory: 15Gi
+      storage:
+        size: 10Gi
+      storeLimitsOptions: {}
+      tenancyConfig:
+        defaultTenantID: FB870BF3-9F3A-44FF-9BF7-D7A047A52F43
+        tenantHeader: THANOS-TENANT
+        tenantLabelName: tenant_id
+        tenantMatcherType: exact
+      tooFarInFutureTimeWindow: 5m
+      tsdbConfig:
+        retention: 1d
+      version: 358a4a4341684ca1f199b6780891f4d09d5ca458
+  routerSpec:
+    additionalArgs:
+    - "--receive.grpc-service-config={\n  \"loadBalancingPolicy\":\"round_robin\",\n
+      \ \"retryPolicy\": {\n    \"maxAttempts\": 0,\n    \"initialBackoff\": \"0.1s\",\n
+      \   \"backoffMultiplier\": 1,\n    \"retryableStatusCodes\": [\n  \t  \"UNAVAILABLE\"\n
+      \   ]\n  }\n}"
+    - |-
+      --tracing.config="config":
+        "sampler_param": 2
+        "sampler_type": "ratelimiting"
+        "service_name": "thanos-receive-router"
+      "type": "JAEGER"
+    additionalContainers:
+    - args:
+      - --reporter.grpc.host-port=dns:///otel-trace-writer-collector-headless.observatorium-tools.svc:14250
+      - --reporter.type=grpc
+      - --agent.tags=pod.namespace=$(NAMESPACE),pod.name=$(POD)
+      env:
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: POD
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      image: registry.redhat.io/rhosdt/jaeger-agent-rhel8:1.57.0-10
+      imagePullPolicy: IfNotPresent
+      livenessProbe:
+        failureThreshold: 5
+        httpGet:
+          path: /
+          port: 14271
+          scheme: HTTP
+        initialDelaySeconds: 1
+      name: jaeger-agent
+      ports:
+      - containerPort: 5778
+        name: configs
+      - containerPort: 6831
+        name: jaeger-thrift
+      - containerPort: 14271
+        name: metrics
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 14271
+          scheme: HTTP
+        initialDelaySeconds: 1
+      resources:
+        limits:
+          cpu: 128m
+          memory: 128Mi
+        requests:
+          cpu: 32m
+          memory: 64Mi
+    baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+    externalLabels:
+      receive: "true"
+    imagePullPolicy: IfNotPresent
+    logFormat: logfmt
+    logLevel: info
+    replicas: 3
+    replicationFactor: 3
+    resourceRequirements:
+      requests:
+        cpu: "1"
+        memory: 5Gi
+    version: 358a4a4341684ca1f199b6780891f4d09d5ca458
+status:
+  routerStatus:
+    availableReplicas: 0
+    readyReplicas: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0

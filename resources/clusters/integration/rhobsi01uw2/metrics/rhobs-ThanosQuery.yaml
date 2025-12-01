@@ -1,0 +1,135 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosQuery
+metadata:
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: query-frontend-tls
+    serviceaccounts.openshift.io/oauth-redirectreference.application: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"thanos-query-frontend-rhobs"}}'
+  name: rhobs
+  namespace: rhobs-int
+spec:
+  baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+  customStoreLabelSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: thanos
+      operator.thanos.io/store-api: "true"
+  featureGates:
+    podDisruptionBudget:
+      enable: false
+    serviceMonitor:
+      enable: false
+  grpcProxyStrategy: lazy
+  imagePullPolicy: IfNotPresent
+  logFormat: logfmt
+  logLevel: info
+  queryFrontend:
+    additionalContainers:
+    - args:
+      - -provider=openshift
+      - -https-address=:8443
+      - -http-address=
+      - -email-domain=*
+      - -upstream=http://localhost:9090
+      - -openshift-service-account=thanos-query-frontend-rhobs
+      - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "rhobs-int",
+        "namespace": "rhobs-int"}'
+      - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get",
+        "name": "rhobs-int", "namespace": "rhobs-int"}}'
+      - -tls-cert=/etc/tls/private/tls.crt
+      - -tls-key=/etc/tls/private/tls.key
+      - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+      - -cookie-secret=${OAUTH_PROXY_COOKIE_SECRET}
+      - -openshift-ca=/etc/pki/tls/cert.pem
+      - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14
+      name: oauth-proxy
+      ports:
+      - containerPort: 8443
+        name: https
+        protocol: TCP
+      resources:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+      terminationMessagePolicy: FallbackToLogsOnError
+      volumeMounts:
+      - mountPath: /etc/tls/private
+        name: tls
+        readOnly: true
+    additionalServicePorts:
+    - name: https
+      port: 8443
+      targetPort: 8443
+    additionalVolumes:
+    - name: tls
+      secret:
+        secretName: query-frontend-tls
+    baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+    compressResponses: true
+    imagePullPolicy: IfNotPresent
+    labelsDefaultTimeRange: 336h
+    labelsMaxRetries: 3
+    labelsSplitInterval: 48h
+    logFormat: logfmt
+    logLevel: info
+    logQueriesLongerThan: 10s
+    queryLabelSelector:
+      matchLabels:
+        operator.thanos.io/query-api: "true"
+    queryRangeMaxRetries: 3
+    queryRangeResponseCacheConfig:
+      externalCacheConfig:
+        key: thanos.yaml
+        name: thanos-query-range-cache-memcached
+    queryRangeSplitInterval: 48h
+    replicas: 1
+    resourceRequirements:
+      limits:
+        cpu: 200m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    version: 358a4a4341684ca1f199b6780891f4d09d5ca458
+  replicaLabels:
+  - prometheus_replica
+  - replica
+  - rule_replica
+  replicas: 1
+  resourceRequirements:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  telemetryQuantiles:
+    duration:
+    - "0.1"
+    - "0.25"
+    - "0.75"
+    - "1.25"
+    - "1.75"
+    - "2.5"
+    - "3"
+    - "5"
+    - "10"
+    - "15"
+    - "30"
+    - "60"
+    - "120"
+  version: 358a4a4341684ca1f199b6780891f4d09d5ca458
+  webConfig:
+    prefixHeader: X-Forwarded-Prefix
+status:
+  querierStatus:
+    availableReplicas: 0
+    readyReplicas: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0
+  queryFrontendStatus:
+    availableReplicas: 0
+    readyReplicas: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0

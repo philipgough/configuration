@@ -58,7 +58,21 @@ func rhobsi01uw2RBAC() cfgobservatorium.ObservatoriumRBAC {
 }
 
 func rhobsi01uw2BuildSteps() []string {
-	return DefaultBuildSteps()
+	// Use the new metrics bundle instead of individual Thanos steps
+	steps := []string{
+		StepMetrics,
+	}
+	steps = append(steps, DefaultLoggingBuildSteps()...)
+	steps = append(steps, DefaultSyntheticsBuildSteps()...)
+
+	steps = append(steps,
+		StepServiceMonitors, // Monitoring setup
+		StepAlertmanager,    // Alerting configuration
+		StepSecrets,         // Secrets last
+		StepMemcached,       // Memcached configuration
+		StepGateway,         // Gateway configuration
+	)
+	return steps
 }
 
 // rhobsi01uw2TemplateMaps returns template mappings specific to the rhobsi01uw2 integration cluster
