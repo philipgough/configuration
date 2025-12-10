@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/bwplotka/mimic"
 	"github.com/bwplotka/mimic/encoding"
 	"github.com/ghodss/yaml"
+	"github.com/go-kit/log"
 	observatoriumapi "github.com/observatorium/observatorium/configuration_go/abstr/kubernetes/observatorium/api"
 	"github.com/observatorium/observatorium/configuration_go/kubegen/openshift"
 	templatev1 "github.com/openshift/api/template/v1"
@@ -23,7 +25,7 @@ import (
 )
 
 const (
-	gatewayName     = "observatorium-api"
+	gatewayName     = "rhobs-gateway"
 	gatewayTemplate = "observatorium-api-template.yaml"
 
 	observatoriumAPI     = "OBSERVATORIUM_API"
@@ -43,6 +45,10 @@ const (
 func (b Build) Gateway(config clusters.ClusterConfig) error {
 	fn := func() *mimic.Generator {
 		return b.generator(config, gatewayName)
+	}
+	// For rhobss01ue1 cluster, generate gateway bundle with individual resources
+	if config.Name == "rhobss01ue1" {
+		return generateGatewayBundle(config)
 	}
 	return gateway(config, fn)
 }
@@ -80,12 +86,93 @@ func gateway(config clusters.ClusterConfig, fn builderBuilderGenFunc) error {
 		gatewayServiceMonitor(clusters.StageMaps, ns, config.GatewayConfig),
 	}
 
+
 	template = openshift.WrapInTemplate(sms, metav1.ObjectMeta{
 		Name: gatewayName + "-service-monitor",
 	}, nil)
 	gen = fn()
 	gen.Add("service-monitor-"+gatewayTemplate, encoding.GhodssYAML(template))
 	gen.Generate()
+
+	return nil
+}
+
+// generateGatewayBundle generates individual gateway and cache resource files
+func generateGatewayBundle(config clusters.ClusterConfig) error {
+	ns := config.Namespace
+	rbac, err := json.Marshal(config.GatewayConfig.RBAC())
+	if err != nil {
+		return fmt.Errorf("failed to marshal RBAC configuration: %w", err)
+	}
+	rbacYAML, err := yaml.JSONToYAML(rbac)
+	if err != nil {
+		return fmt.Errorf("failed to convert RBAC configuration to YAML: %w", err)
+	}
+
+	deployment := gatewayDeployment(config.Templates, ns, config.GatewayConfig)
+	// Ensure metadata.name is rhobs-gateway
+	deployment.ObjectMeta.Name = gatewayName
+
+	// Gateway resources
+	gatewayObjs := []runtime.Object{
+		gatewayRBAC(config.Templates, ns, string(rbacYAML)),
+		deployment,
+		createGatewayService(config.Templates, ns, config.GatewayConfig),
+		createGatewayServiceAccount(config.Templates, ns),
+	}
+
+	// Gateway cache resources
+	cacheConfig := gatewayCache(config.Templates, ns)
+	cacheObjs := []runtime.Object{
+		memcachedStatefulSet(cacheConfig, config.Templates),
+		createServiceAccount(cacheConfig.Name, cacheConfig.Namespace, cacheConfig.Labels),
+		createCacheHeadlessService(cacheConfig),
+	}
+
+	// Secret as template
+	secret := createTenantSecret(config, ns)
+
+	// Create gateway generator
+	gatewayGen := &mimic.Generator{}
+	gatewayGen = gatewayGen.With(templatePath, templateClustersPath, string(config.Environment), string(config.Name), "gateway")
+	gatewayGen.Logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+
+	// Generate individual gateway resource files with proxy- prefix
+	for _, obj := range gatewayObjs {
+		filename := fmt.Sprintf("proxy-%s-%s.yaml", gatewayName, getResourceKind(obj))
+		processedObj := gatewayPostProcessForBundle(obj, ns)
+		gatewayGen.Add(filename, encoding.GhodssYAML(processedObj))
+	}
+
+	// Generate individual cache resource files with cache- prefix
+	for _, obj := range cacheObjs {
+		filename := fmt.Sprintf("cache-%s-%s.yaml", cacheConfig.Name, getResourceKind(obj))
+		// For now, just use the object as-is since we're focusing on gateway bundle structure
+		gatewayGen.Add(filename, encoding.GhodssYAML(obj))
+	}
+
+	// Create templates generator for secret wrapped in OpenShift template
+	templatesGen := &mimic.Generator{}
+	templatesGen = templatesGen.With(templatePath, templateClustersPath, string(config.Environment), string(config.Name), "gateway", "templates")
+	templatesGen.Logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+	
+	// Wrap secret in OpenShift template with parameters
+	secretObjs := []runtime.Object{secret}
+	secretTemplate := openshift.WrapInTemplate(secretObjs, metav1.ObjectMeta{
+		Name: "gateway-secret",
+	}, gatewayTemplateParams)
+	templatesGen.Add("gateway-secret-template.yaml", encoding.GhodssYAML(secretTemplate))
+
+	// Generate all bundles
+	gatewayGen.Generate()
+	templatesGen.Generate()
+
+	// Add ServiceMonitors to monitoring bundle
+	monBundle := GetMonitoringBundle(config)
+	gatewayServiceMonitor := gatewayServiceMonitor(config.Templates, ns, config.GatewayConfig)
+	cacheServiceMonitor := createCacheServiceMonitor(cacheConfig)
+	monBundle.AddServiceMonitor(gatewayServiceMonitor)
+	monBundle.AddServiceMonitor(cacheServiceMonitor)
 
 	return nil
 }
@@ -976,6 +1063,33 @@ var gatewayTemplateParams = []templatev1.Parameter{
 		Description: "Client secret for OIDC",
 	},
 }
+
+// gatewayPostProcessForBundle processes gateway resources for bundle generation
+func gatewayPostProcessForBundle(obj runtime.Object, namespace string) runtime.Object {
+	// For now, just return the object as-is since we're focusing on gateway bundle structure
+	return obj
+}
+
+// getResourceKind returns the Kind field from a Kubernetes object
+func getResourceKind(obj runtime.Object) string {
+	switch obj.(type) {
+	case *appsv1.Deployment:
+		return "Deployment"
+	case *corev1.Service:
+		return "Service"
+	case *corev1.ServiceAccount:
+		return "ServiceAccount"
+	case *corev1.ConfigMap:
+		return "ConfigMap"
+	case *corev1.Secret:
+		return "Secret"
+	case *appsv1.StatefulSet:
+		return "StatefulSet"
+	default:
+		return "Unknown"
+	}
+}
+
 
 func gatewayServiceMonitor(m clusters.TemplateMaps, matchNS string, conf *clusters.GatewayConfig) *monitoringv1.ServiceMonitor {
 	labels, selectorLabels := gatewayLabels(m)

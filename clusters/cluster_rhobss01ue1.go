@@ -58,7 +58,7 @@ func rhobss01ue1RBAC() cfgobservatorium.ObservatoriumRBAC {
 }
 
 func rhobss01ue1sBuildSteps() []string {
-	return DefaultBuildSteps()
+	return DefaultGatewayBuildSteps()
 }
 
 // rhobss01ue1TemplateMaps returns template mappings specific to the rhobss01ue1 integration cluster

@@ -112,12 +112,12 @@ func DefaultBuildSteps() []string {
 	steps = append(steps, DefaultLoggingBuildSteps()...)
 	steps = append(steps, DefaultSyntheticsBuildSteps()...)
 	steps = append(steps, DefaultAlertingBuildSteps()...)
+	steps = append(steps, DefaultGatewayBuildSteps()...)
 
 	steps = append(steps,
 		StepServiceMonitors, // Monitoring setup
 		StepSecrets,         // Secrets last
 		StepMemcached,       // Memcached configuration
-		StepGateway,         // Gateway configuration
 	)
 	return steps
 }
@@ -147,6 +147,12 @@ func DefaultSyntheticsBuildSteps() []string {
 func DefaultAlertingBuildSteps() []string {
 	return []string{
 		StepAlertmanager,
+	}
+}
+
+func DefaultGatewayBuildSteps() []string {
+	return []string{
+		StepGateway,
 	}
 }
 
