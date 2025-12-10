@@ -35,7 +35,7 @@ spec:
         - -c 3072
         - -I 5m
         - -v
-        image: docker.io/memcached:1.6.17-alpine
+        image: registry.redhat.io/rhel8/memcached:1.5-316
         imagePullPolicy: IfNotPresent
         name: memcached
         ports:

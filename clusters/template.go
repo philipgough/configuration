@@ -283,7 +283,7 @@ func DefaultBaseTemplate() TemplateMaps {
 			Query:                  thanosImage,
 			QueryFrontend:          thanosImage,
 			Jaeger:                 "registry.redhat.io/rhosdt/jaeger-agent-rhel8:1.57.0-10",
-			ApiCache:               "docker.io/memcached:1.6.17-alpine",
+			ApiCache:               memcachedImage,
 			MemcachedExporter:      memcachedExporterImage,
 			ObservatoriumAPI:       fmt.Sprintf("%s:%s", ObservatoriumImage, ObservatoriumVersion),
 			SyntheticsAPI:          syntheticsApiImage,
