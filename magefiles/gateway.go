@@ -131,23 +131,23 @@ func generateGatewayBundle(config clusters.ClusterConfig) error {
 	// Secret as template
 	secret := createTenantSecret(config, ns)
 
-	// Create gateway generator
-	gatewayGen := &mimic.Generator{}
-	gatewayGen = gatewayGen.With(templatePath, templateClustersPath, string(config.Environment), string(config.Name), "gateway")
-	gatewayGen.Logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+	// Create bundle generator for individual resource files
+	bundleGen := &mimic.Generator{}
+	bundleGen = bundleGen.With(templatePath, templateClustersPath, string(config.Environment), string(config.Name), "gateway", "bundle")
+	bundleGen.Logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
 
 	// Generate individual gateway resource files with proxy- prefix
 	for _, obj := range gatewayObjs {
 		filename := fmt.Sprintf("proxy-%s-%s.yaml", gatewayName, getResourceKind(obj))
 		processedObj := gatewayPostProcessForBundle(obj, ns)
-		gatewayGen.Add(filename, encoding.GhodssYAML(processedObj))
+		bundleGen.Add(filename, encoding.GhodssYAML(processedObj))
 	}
 
 	// Generate individual cache resource files with cache- prefix
 	for _, obj := range cacheObjs {
 		filename := fmt.Sprintf("cache-%s-%s.yaml", cacheConfig.Name, getResourceKind(obj))
 		// For now, just use the object as-is since we're focusing on gateway bundle structure
-		gatewayGen.Add(filename, encoding.GhodssYAML(obj))
+		bundleGen.Add(filename, encoding.GhodssYAML(obj))
 	}
 
 	// Create templates generator for secret wrapped in OpenShift template
@@ -163,7 +163,7 @@ func generateGatewayBundle(config clusters.ClusterConfig) error {
 	templatesGen.Add("gateway-secret-template.yaml", encoding.GhodssYAML(secretTemplate))
 
 	// Generate all bundles
-	gatewayGen.Generate()
+	bundleGen.Generate()
 	templatesGen.Generate()
 
 	// Add ServiceMonitors to monitoring bundle
