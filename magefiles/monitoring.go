@@ -14,8 +14,8 @@ import (
 
 // MonitoringBundle collects ServiceMonitors from all build steps
 type MonitoringBundle struct {
-	config           clusters.ClusterConfig
-	serviceMonitors  []runtime.Object
+	config          clusters.ClusterConfig
+	serviceMonitors []runtime.Object
 }
 
 // NewMonitoringBundle creates a new monitoring bundle for a cluster
@@ -48,11 +48,11 @@ func (mb *MonitoringBundle) Generate() error {
 		if sm == nil {
 			continue // Skip nil ServiceMonitors
 		}
-		
+
 		if smObj, ok := sm.(*monv1.ServiceMonitor); ok && smObj != nil {
 			// Process ServiceMonitor to ensure it has proper values (no template variables)
 			processedSM := mb.processServiceMonitorForBundle(smObj)
-			
+
 			name := processedSM.Name
 			if name == "" {
 				name = fmt.Sprintf("unnamed-%d", i)
@@ -75,10 +75,10 @@ func (mb *MonitoringBundle) Generate() error {
 func (mb *MonitoringBundle) processServiceMonitorForBundle(sm *monv1.ServiceMonitor) *monv1.ServiceMonitor {
 	// Create a copy to avoid modifying the original
 	processed := sm.DeepCopy()
-	
+
 	// Ensure namespace is set to the monitoring namespace (not template variable)
 	processed.Namespace = "openshift-customer-monitoring"
-	
+
 	// Ensure NamespaceSelector points to the actual cluster namespace (not template variable)
 	if processed.Spec.NamespaceSelector.MatchNames != nil {
 		for i, ns := range processed.Spec.NamespaceSelector.MatchNames {
@@ -91,13 +91,13 @@ func (mb *MonitoringBundle) processServiceMonitorForBundle(sm *monv1.ServiceMoni
 		// Set namespace selector if not present
 		processed.Spec.NamespaceSelector.MatchNames = []string{mb.config.Namespace}
 	}
-	
+
 	// Add required prometheus label if not present
 	if processed.Labels == nil {
 		processed.Labels = make(map[string]string)
 	}
 	processed.Labels["prometheus"] = "app-sre"
-	
+
 	return processed
 }
 
@@ -110,7 +110,7 @@ func GetMonitoringBundle(config clusters.ClusterConfig) *MonitoringBundle {
 	if bundle, exists := monitoringBundles[key]; exists {
 		return bundle
 	}
-	
+
 	bundle := NewMonitoringBundle(config)
 	monitoringBundles[key] = bundle
 	return bundle
@@ -123,7 +123,7 @@ func GenerateAllMonitoringBundles() error {
 			continue
 		}
 		if err := bundle.Generate(); err != nil {
-			return fmt.Errorf("failed to generate monitoring bundle for %s (%s): %w", 
+			return fmt.Errorf("failed to generate monitoring bundle for %s (%s): %w",
 				key, bundle.config.Name, err)
 		}
 	}

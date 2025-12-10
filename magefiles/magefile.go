@@ -105,7 +105,7 @@ func (b Build) Clusters() error {
 			return err
 		}
 	}
-	
+
 	// Generate all monitoring bundles after all build steps complete
 	return GenerateAllMonitoringBundles()
 }
@@ -120,7 +120,7 @@ func (b Build) Cluster(clusterName string) error {
 	if err := b.executeSteps(cluster.BuildSteps, *cluster); err != nil {
 		return err
 	}
-	
+
 	// Generate monitoring bundle after build steps complete
 	return GenerateAllMonitoringBundles()
 }
@@ -142,7 +142,7 @@ func (b Build) Environment(environment string) error {
 			return err
 		}
 	}
-	
+
 	// Generate all monitoring bundles after all build steps complete
 	return GenerateAllMonitoringBundles()
 }

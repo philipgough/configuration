@@ -86,7 +86,6 @@ func gateway(config clusters.ClusterConfig, fn builderBuilderGenFunc) error {
 		gatewayServiceMonitor(clusters.StageMaps, ns, config.GatewayConfig),
 	}
 
-
 	template = openshift.WrapInTemplate(sms, metav1.ObjectMeta{
 		Name: gatewayName + "-service-monitor",
 	}, nil)
@@ -155,7 +154,7 @@ func generateGatewayBundle(config clusters.ClusterConfig) error {
 	templatesGen := &mimic.Generator{}
 	templatesGen = templatesGen.With(templatePath, templateClustersPath, string(config.Environment), string(config.Name), "gateway", "templates")
 	templatesGen.Logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
-	
+
 	// Wrap secret in OpenShift template with parameters
 	secretObjs := []runtime.Object{secret}
 	secretTemplate := openshift.WrapInTemplate(secretObjs, metav1.ObjectMeta{
@@ -1089,7 +1088,6 @@ func getResourceKind(obj runtime.Object) string {
 		return "Unknown"
 	}
 }
-
 
 func gatewayServiceMonitor(m clusters.TemplateMaps, matchNS string, conf *clusters.GatewayConfig) *monitoringv1.ServiceMonitor {
 	labels, selectorLabels := gatewayLabels(m)
