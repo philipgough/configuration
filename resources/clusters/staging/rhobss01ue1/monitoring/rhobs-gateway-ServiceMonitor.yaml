@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: rhobs-gateway
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: 98f89ac6b75d7e887090efdeb2778b132bd405b9
+    prometheus: app-sre
+  name: rhobs-gateway
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: internal
+  - interval: 30s
+    path: /metrics
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - rhobs-stage
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: api
+      app.kubernetes.io/instance: rhobs
+      app.kubernetes.io/name: rhobs-gateway
+      app.kubernetes.io/part-of: rhobs
