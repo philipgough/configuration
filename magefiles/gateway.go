@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bwplotka/mimic"
@@ -19,6 +20,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1084,7 +1086,29 @@ func getResourceKind(obj runtime.Object) string {
 		return "Secret"
 	case *appsv1.StatefulSet:
 		return "StatefulSet"
+	case *rbacv1.ClusterRole:
+		return "ClusterRole"
+	case *rbacv1.ClusterRoleBinding:
+		return "ClusterRoleBinding"
+	case *rbacv1.Role:
+		return "Role"
+	case *rbacv1.RoleBinding:
+		return "RoleBinding"
 	default:
+		// Try to get the kind from TypeMeta as a fallback
+		if gvk := obj.GetObjectKind().GroupVersionKind(); gvk.Kind != "" {
+			return gvk.Kind
+		}
+		// If TypeMeta doesn't have Kind, try to infer from type name
+		objType := fmt.Sprintf("%T", obj)
+		if objType != "" && len(objType) > 1 {
+			// Extract the last part after the dot and asterisk (e.g., "*v1.LokiStack" -> "LokiStack")
+			parts := strings.Split(objType, ".")
+			if len(parts) > 0 {
+				typeName := parts[len(parts)-1]
+				return typeName
+			}
+		}
 		return "Unknown"
 	}
 }

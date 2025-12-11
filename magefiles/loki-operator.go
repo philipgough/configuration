@@ -40,6 +40,10 @@ const (
 // LokiOperatorCRDS Generates the CRDs for the Loki operator.
 // This is synced from the ref lokiRef at https://gitlab.cee.redhat.com/openshift-logging/konflux-log-storage
 func (b Build) LokiOperatorCRDS(config clusters.ClusterConfig) error {
+	// For rhobss01ue1 cluster, CRDs are handled in logs bundle
+	if config.Name == "rhobss01ue1" {
+		return nil // CRDs are generated as part of logs bundle
+	}
 	gen := b.generator(config, "loki-operator-crds")
 	return lokiCRD(gen, clusters.ProductionMaps)
 }
@@ -79,6 +83,11 @@ func lokiCRD(gen *mimic.Generator, templates clusters.TemplateMaps) error {
 }
 
 func (b Build) LokiOperator(config clusters.ClusterConfig) {
+	// For rhobss01ue1 cluster, operator is handled in logs bundle
+	if config.Name == "rhobss01ue1" {
+		return // Operator is generated as part of logs bundle
+	}
+	
 	gen := b.generator(config, "loki-operator")
 
 	objs := lokiOperatorResources(config.Namespace)
