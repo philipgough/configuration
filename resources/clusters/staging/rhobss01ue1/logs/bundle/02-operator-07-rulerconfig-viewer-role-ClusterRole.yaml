@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: loki-rulerconfig-viewer-role
+rules:
+- apiGroups:
+  - loki.grafana.com
+  resources:
+  - rulerconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - loki.grafana.com
+  resources:
+  - rulerconfigs/status
+  verbs:
+  - get

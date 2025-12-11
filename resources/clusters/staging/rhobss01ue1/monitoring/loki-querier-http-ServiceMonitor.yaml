@@ -1,0 +1,27 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: querier
+    app.kubernetes.io/created-by: lokistack-controller
+    app.kubernetes.io/instance: observatorium-lokistack
+    app.kubernetes.io/managed-by: lokistack-controller
+    app.kubernetes.io/name: lokistack
+    prometheus: app-sre
+  name: loki-querier-http
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics
+  namespaceSelector:
+    matchNames:
+    - rhobs-stage
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: querier
+      app.kubernetes.io/created-by: lokistack-controller
+      app.kubernetes.io/instance: observatorium-lokistack
+      app.kubernetes.io/managed-by: lokistack-controller
+      app.kubernetes.io/name: lokistack
