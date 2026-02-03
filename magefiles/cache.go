@@ -245,6 +245,28 @@ func memcachedStatefulSet(config *memcachedConfig, m clusters.TemplateMaps) *app
 		Resources:                m.ResourceRequirements[apiCache],
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 		ImagePullPolicy:          corev1.PullIfNotPresent,
+		LivenessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"pgrep", "memcached"},
+				},
+			},
+			InitialDelaySeconds: 30,
+			PeriodSeconds:       10,
+			FailureThreshold:    6,
+		},
+		ReadinessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				TCPSocket: &corev1.TCPSocketAction{
+					Port: intstr.FromInt32(11211),
+				},
+			},
+			FailureThreshold:    6,
+			InitialDelaySeconds: 5,
+			PeriodSeconds:       5,
+			SuccessThreshold:    1,
+			TimeoutSeconds:      3,
+		},
 	}
 
 	exporterContainer := corev1.Container{

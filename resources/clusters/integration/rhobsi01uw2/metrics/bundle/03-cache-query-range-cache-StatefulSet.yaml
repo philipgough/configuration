@@ -37,6 +37,14 @@ spec:
         - -v
         image: registry.redhat.io/rhel8/memcached:1.5-316
         imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - memcached
+          failureThreshold: 6
+          initialDelaySeconds: 30
+          periodSeconds: 10
         name: memcached
         ports:
         - containerPort: 11211
