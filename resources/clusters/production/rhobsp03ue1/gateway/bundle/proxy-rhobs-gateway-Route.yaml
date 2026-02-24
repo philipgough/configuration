@@ -1,0 +1,27 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    cert-manager.io/issuer-kind: ClusterIssuer
+    cert-manager.io/issuer-name: rhobs-public-route
+    haproxy.router.openshift.io/balance: source
+    haproxy.router.openshift.io/timeout: 5m
+  labels:
+    app: observatorium-api
+    rhobs-public-route: "true"
+  name: rhobs-gateway
+  namespace: rhobs-production
+spec:
+  host: us-east-1-2.rhobs.api.openshift.com
+  port:
+    targetPort: public
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: Service
+    name: rhobs-gateway
+    weight: 100
+  wildcardPolicy: None
+status:
+  ingress: null

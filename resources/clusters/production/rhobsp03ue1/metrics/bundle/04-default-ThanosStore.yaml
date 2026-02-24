@@ -1,0 +1,51 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosStore
+metadata:
+  name: default
+  namespace: rhobs-production
+spec:
+  baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+  blockConfig:
+    blockDiscoveryStrategy: concurrent
+    blockFilesConcurrency: 1
+    blockMetaFetchConcurrency: 32
+  cachingBucketConfig:
+    externalCacheConfig:
+      key: thanos.yaml
+      name: thanos-bucket-cache-memcached
+  ignoreDeletionMarksDelay: 24h
+  imagePullPolicy: IfNotPresent
+  indexCacheConfig:
+    externalCacheConfig:
+      key: thanos.yaml
+      name: thanos-index-cache-memcached
+  indexHeaderConfig:
+    enableLazyReader: true
+    lazyDownloadStrategy: lazy
+    lazyReaderIdleTimeout: 5m
+  logFormat: logfmt
+  logLevel: info
+  objectStorageConfig:
+    key: thanos.yaml
+    name: default-thanos-bucket
+    optional: false
+  replicas: 3
+  resourceRequirements:
+    limits:
+      memory: 20Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  shardingStrategy:
+    shards: 3
+    type: block
+  storage:
+    size: 10Gi
+  storeLimitsOptions: {}
+  timeRangeConfig:
+    maxTime: -22h
+  version: 0dcacf2a5108328d537dbcf59fcabc9b69f08a2b
+status: {}

@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-api
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-api
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: cea7d4656cd0ad338e580cc6ba266264a9938e5c
+  name: synthetics-api
+  namespace: rhobs-production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: synthetics-api
+      app.kubernetes.io/instance: rhobs
+      app.kubernetes.io/name: synthetics-api
+      app.kubernetes.io/part-of: rhobs
+      app.kubernetes.io/version: cea7d4656cd0ad338e580cc6ba266264a9938e5c
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: synthetics-api
+        app.kubernetes.io/instance: rhobs
+        app.kubernetes.io/name: synthetics-api
+        app.kubernetes.io/part-of: rhobs
+        app.kubernetes.io/version: cea7d4656cd0ad338e580cc6ba266264a9938e5c
+    spec:
+      containers:
+      - env:
+        - name: NAMESPACE
+          value: rhobs-production
+        image: quay.io/redhat-services-prod/openshift/rhobs-synthetics-api
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 8080
+          initialDelaySeconds: 30
+        name: synthetics-api
+        ports:
+        - containerPort: 8080
+          name: synthetics-api
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+      serviceAccountName: synthetics-api
+status: {}

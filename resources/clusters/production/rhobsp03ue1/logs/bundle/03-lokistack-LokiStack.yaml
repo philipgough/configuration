@@ -2,16 +2,16 @@ apiVersion: loki.grafana.com/v1
 kind: LokiStack
 metadata:
   name: observatorium-lokistack
-  namespace: rhobs-stage
+  namespace: rhobs-production
 spec:
   limits:
     global:
       ingestion:
         ingestionBurstSize: 256
-        ingestionRate: 20
+        ingestionRate: 12
         maxLineSize: 2097152
-        perStreamRateLimit: 15
-        perStreamRateLimitBurst: 30
+        perStreamRateLimit: 5
+        perStreamRateLimitBurst: 15
       otlp:
         streamLabels:
           resourceAttributes:
@@ -20,7 +20,7 @@ spec:
           - name: openshift.log.source
           - name: openshift.log.type
       queries:
-        queryTimeout: 5m
+        queryTimeout: 3m
   managementState: Managed
   size: 1x.extra-small
   storage:

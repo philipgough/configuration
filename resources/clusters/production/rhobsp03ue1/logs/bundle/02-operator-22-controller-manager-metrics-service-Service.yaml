@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: metrics
+  name: loki-controller-manager-metrics-service
+  namespace: rhobs-production
+spec:
+  ports:
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: metrics
+  selector:
+    name: loki-operator-controller-manager
+status:
+  loadBalancer: {}

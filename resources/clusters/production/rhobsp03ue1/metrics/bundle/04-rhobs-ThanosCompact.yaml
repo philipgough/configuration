@@ -1,0 +1,100 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosCompact
+metadata:
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: compact-tls
+    serviceaccounts.openshift.io/oauth-redirectreference.application: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"thanos-compact-rhobs"}}'
+  name: rhobs
+  namespace: rhobs-production
+spec:
+  additionalArgs:
+  - --deduplication.replica-label=replica
+  additionalContainers:
+  - args:
+    - -provider=openshift
+    - -https-address=:8443
+    - -http-address=
+    - -email-domain=*
+    - -upstream=http://localhost:10902
+    - -openshift-service-account=thanos-compact-rhobs
+    - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "rhobs-production",
+      "namespace": "rhobs-production"}'
+    - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get", "name":
+      "rhobs-production", "namespace": "rhobs-production"}}'
+    - -tls-cert=/etc/tls/private/tls.crt
+    - -tls-key=/etc/tls/private/tls.key
+    - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+    - -cookie-secret-file=/etc/oauth-cookie/cookie.txt
+    - -openshift-ca=/etc/pki/tls/cert.pem
+    - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14
+    name: oauth-proxy
+    ports:
+    - containerPort: 8443
+      name: https
+      protocol: TCP
+    resources:
+      requests:
+        cpu: 100m
+        memory: 100Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    terminationMessagePolicy: FallbackToLogsOnError
+    volumeMounts:
+    - mountPath: /etc/tls/private
+      name: tls
+      readOnly: true
+    - mountPath: /etc/oauth-cookie
+      name: oauth-cookie
+      readOnly: true
+  additionalServicePorts:
+  - name: https
+    port: 8443
+    targetPort: 8443
+  additionalVolumes:
+  - name: tls
+    secret:
+      secretName: compact-tls
+  - name: oauth-cookie
+    secret:
+      secretName: oauth-cookie
+  baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+  compactConfig:
+    compactConcurrency: 1
+  debugConfig:
+    acceptMalformedIndex: true
+    haltOnError: true
+    maxCompactionLevel: 3
+  downsamplingConfig:
+    disable: false
+    downsamplingConcurrency: 1
+  imagePullPolicy: IfNotPresent
+  logFormat: logfmt
+  logLevel: info
+  objectStorageConfig:
+    key: thanos.yaml
+    name: default-thanos-bucket
+    optional: false
+  resourceRequirements:
+    limits:
+      memory: 20Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+  retentionConfig:
+    fiveMinutes: 365d
+    oneHour: 365d
+    raw: 365d
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    size: 50Gi
+  version: 0dcacf2a5108328d537dbcf59fcabc9b69f08a2b
+status: {}

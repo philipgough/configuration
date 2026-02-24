@@ -9,7 +9,7 @@ spec:
       ingestion:
         ingestionBurstSize: 256
         ingestionRate: 20
-        maxLineSize: 262144
+        maxLineSize: 2097152
         perStreamRateLimit: 15
         perStreamRateLimitBurst: 30
       otlp:

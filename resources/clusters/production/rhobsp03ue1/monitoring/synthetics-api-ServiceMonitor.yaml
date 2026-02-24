@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-api
+    prometheus: app-sre
+  name: synthetics-api
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - honorLabels: true
+    interval: 30s
+    port: synthetics-api
+  namespaceSelector:
+    matchNames:
+    - rhobs-production
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: synthetics-api

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-agent
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-agent
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: "3012046"
+  name: synthetics-agent
+  namespace: rhobs-production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: synthetics-agent
+      app.kubernetes.io/instance: rhobs
+      app.kubernetes.io/name: synthetics-agent
+      app.kubernetes.io/part-of: rhobs
+      app.kubernetes.io/version: "3012046"
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: synthetics-agent
+        app.kubernetes.io/instance: rhobs
+        app.kubernetes.io/name: synthetics-agent
+        app.kubernetes.io/part-of: rhobs
+        app.kubernetes.io/version: "3012046"
+    spec:
+      containers:
+      - args:
+        - start
+        - --config
+        - /etc/config/config.yaml
+        command:
+        - ./rhobs-synthetics-agent
+        image: quay.io/redhat-services-prod/openshift/rhobs-synthetics-agent:3012046
+        imagePullPolicy: IfNotPresent
+        name: synthetics-agent
+        ports:
+        - containerPort: 8080
+          name: http-metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config
+      securityContext: {}
+      serviceAccountName: synthetics-agent
+      volumes:
+      - configMap:
+          name: synthetics-agent
+        name: config
+status: {}

@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: loki-alertingrule-viewer-role
+rules:
+- apiGroups:
+  - loki.grafana.com
+  resources:
+  - alertingrules
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - loki.grafana.com
+  resources:
+  - alertingrules/status
+  verbs:
+  - get

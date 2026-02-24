@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/created-by: loki-operator
+    app.kubernetes.io/instance: controller-manager-metrics
+    app.kubernetes.io/managed-by: rhobs
+    app.kubernetes.io/name: servicemonitor
+    app.kubernetes.io/part-of: loki-operator
+    prometheus: app-sre
+  name: loki-operator-controller-manager-metrics
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - port: metrics
+  namespaceSelector:
+    matchNames:
+    - rhobs-production
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: metrics

@@ -1,0 +1,17 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-agent
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-agent
+    app.kubernetes.io/part-of: rhobs
+  name: synthetics-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: synthetics-agent
+subjects:
+- kind: ServiceAccount
+  name: synthetics-agent
+  namespace: rhobs-production

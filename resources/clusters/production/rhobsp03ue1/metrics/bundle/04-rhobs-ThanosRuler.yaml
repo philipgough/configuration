@@ -1,0 +1,45 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosRuler
+metadata:
+  name: rhobs
+  namespace: rhobs-production
+spec:
+  alertLabelDrop:
+  - rule_replica
+  alertmanagerURL: dnssrv+http://alertmanager-cluster.rhobs-production.svc.cluster.local:9093
+  baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+  defaultObjectStorageConfig:
+    key: thanos.yaml
+    name: default-thanos-bucket
+    optional: false
+  evaluationInterval: 1m
+  externalLabels:
+    rule_replica: $(NAME)
+  imagePullPolicy: IfNotPresent
+  logFormat: logfmt
+  logLevel: info
+  queryLabelSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: thanos
+      operator.thanos.io/query-api: "true"
+  replicas: 1
+  resourceRequirements:
+    limits:
+      memory: 5Gi
+    requests:
+      cpu: 100m
+      memory: 1Gi
+  retention: 48h
+  ruleConfigSelector:
+    matchLabels:
+      operator.thanos.io/prometheus-rule: "true"
+  ruleTenancyConfig:
+    tenantLabel: tenant_id
+    tenantValueLabel: operator.thanos.io/tenant
+  securityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  storage:
+    size: 10Gi
+  version: 0dcacf2a5108328d537dbcf59fcabc9b69f08a2b
+status: {}

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-agent
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-agent
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: "3012046"
+  name: synthetics-agent
+  namespace: rhobs-production
+spec:
+  ports:
+  - name: http-metrics
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/component: synthetics-agent
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-agent
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: "3012046"
+status:
+  loadBalancer: {}
