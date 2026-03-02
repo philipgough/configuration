@@ -1,0 +1,45 @@
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: observatorium-lokistack
+  namespace: rhobs-production
+spec:
+  limits:
+    global:
+      ingestion:
+        ingestionBurstSize: 256
+        ingestionRate: 12
+        maxLineSize: 2097152
+        perStreamRateLimit: 5
+        perStreamRateLimitBurst: 15
+      otlp:
+        streamLabels:
+          resourceAttributes:
+          - name: k8s.namespace.name
+          - name: openshift.label.cluster_name
+          - name: openshift.log.source
+          - name: openshift.log.type
+      queries:
+        queryTimeout: 3m
+  managementState: Managed
+  size: 1x.extra-small
+  storage:
+    schemas:
+    - effectiveDate: "2025-06-06"
+      version: v13
+    secret:
+      name: loki-default-bucket
+      type: s3
+  storageClassName: gp3-csi
+  template:
+    distributor:
+      replicas: 3
+    ingester:
+      replicas: 3
+    querier:
+      replicas: 2
+    queryFrontend:
+      replicas: 2
+status:
+  components: {}
+  storage: {}

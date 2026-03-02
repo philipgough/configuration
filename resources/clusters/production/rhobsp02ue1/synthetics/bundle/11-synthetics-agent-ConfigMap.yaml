@@ -1,0 +1,33 @@
+apiVersion: v1
+data:
+  config.yaml: |-
+    # Logging configuration
+    log_level: info
+    log_format: json
+
+    # Polling configuration
+    polling_interval: 30s
+    graceful_timeout: 30s
+
+    # API Configuration
+    api_urls: http://synthetics-api.rhobs-production.svc.cluster.local:8080/probes
+    label_selector: private=false
+
+    # Kubernetes Configuration
+    namespace: rhobs-production
+
+    # Blackbox Configuration
+    blackbox:
+      interval: 30s
+      module: http_2xx
+      prober_url: synthetics-blackbox-prober-default-service:9115
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: synthetics-agent
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: synthetics-agent
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: "3012046"
+  name: synthetics-agent
+  namespace: rhobs-production

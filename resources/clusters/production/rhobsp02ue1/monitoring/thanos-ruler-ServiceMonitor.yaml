@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/component: rule-evaluation-engine
+    app.kubernetes.io/managed-by: thanos-operator
+    app.kubernetes.io/name: thanos-ruler
+    app.kubernetes.io/part-of: thanos
+    prometheus: app-sre
+  name: thanos-ruler
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - interval: 30s
+    port: http
+  namespaceSelector:
+    matchNames:
+    - rhobs-production
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: rule-evaluation-engine
+      app.kubernetes.io/managed-by: thanos-operator
+      app.kubernetes.io/name: thanos-ruler
+      app.kubernetes.io/part-of: thanos

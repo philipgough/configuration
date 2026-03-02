@@ -46,6 +46,7 @@ var migratedClusters = []clusters.ClusterName{
 	clusters.ClusterRHOBSUSEastOneStaging,
 	clusters.ClusterRHOBSUSWestTwoStaging,
 	clusters.ClusterRHOBSUSEastOneProduction,
+	clusters.ClusterRHOBSUSEastOneShardOneProduction,
 	clusters.ClusterRHOBSSouthAmericaEastOneProduction,
 	clusters.ClusterRHOBSEuropeWestOneProduction,
 	clusters.ClusterRHOBSEuropeCentralOneProduction,

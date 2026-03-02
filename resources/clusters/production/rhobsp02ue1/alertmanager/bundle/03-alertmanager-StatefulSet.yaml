@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app.kubernetes.io/component: alertmanager
+    app.kubernetes.io/instance: observatorium
+    app.kubernetes.io/name: alertmanager
+    app.kubernetes.io/part-of: observatorium
+    app.kubernetes.io/version: v4.15
+  name: alertmanager
+  namespace: rhobs-production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: alertmanager
+      app.kubernetes.io/instance: observatorium
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/part-of: observatorium
+  serviceName: alertmanager-cluster
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: alertmanager
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: v4.15
+      namespace: rhobs-production
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/instance
+                  operator: In
+                  values:
+                  - observatorium
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - alertmanager
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - --config.file=/etc/alertmanager/config/alertmanager.yaml
+        - --storage.path=/data
+        - --cluster.peer=alertmanager-0.alertmanager-cluster.rhobs-production.svc.cluster.local:9094
+        - --cluster.peer=alertmanager-1.alertmanager-cluster.rhobs-production.svc.cluster.local:9094
+        - --cluster.reconnect-timeout=5m0s
+        - --log.level=warn
+        - --log.format=logfmt
+        image: registry.redhat.io/openshift4/ose-prometheus-alertmanager:v4.15
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /-/healthy
+            port: 9093
+          periodSeconds: 30
+          timeoutSeconds: 1
+        name: alertmanager
+        ports:
+        - containerPort: 9093
+          name: http
+          protocol: TCP
+        - containerPort: 9094
+          name: cluster-tcp
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 20
+          httpGet:
+            path: /-/ready
+            port: 9093
+          periodSeconds: 5
+        resources:
+          limits:
+            cpu: "5"
+            memory: 5Gi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /data
+          name: alertmanager-data
+        - mountPath: /etc/alertmanager/config
+          name: config-file
+          readOnly: true
+      - args:
+        - -provider=openshift
+        - -https-address=:8443
+        - -http-address=
+        - -email-domain=*
+        - -upstream=http://localhost:9093
+        - -openshift-service-account=alertmanager
+        - '-openshift-sar={"resource": "namespaces", "verb": "get", "name": "rhobs-production",
+          "namespace": "rhobs-production"}'
+        - '-openshift-delegate-urls={"/": {"resource": "namespaces", "verb": "get",
+          "name": "rhobs-production", "namespace": "rhobs-production"}}'
+        - -tls-cert=/etc/tls/private/tls.crt
+        - -tls-key=/etc/tls/private/tls.key
+        - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+        - -cookie-secret-file=/etc/oauth-cookie/cookie.txt
+        - -openshift-ca=/etc/pki/tls/cert.pem
+        - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        image: registry.redhat.io/openshift4/ose-oauth-proxy:v4.14
+        name: oauth-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: tls
+          readOnly: true
+        - mountPath: /etc/oauth-cookie
+          name: oauth-cookie
+          readOnly: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: alertmanager
+      terminationGracePeriodSeconds: 120
+      volumes:
+      - name: config-file
+        secret:
+          secretName: alertmanager-config
+      - name: tls
+        secret:
+          secretName: alertmanager-tls
+      - name: oauth-cookie
+        secret:
+          secretName: oauth-cookie
+  updateStrategy: {}
+  volumeClaimTemplates:
+  - metadata:
+      labels:
+        app.kubernetes.io/component: alertmanager
+        app.kubernetes.io/instance: observatorium
+        app.kubernetes.io/name: alertmanager
+        app.kubernetes.io/part-of: observatorium
+        app.kubernetes.io/version: v4.15
+      name: alertmanager-data
+      namespace: rhobs-production
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: gp2
+    status: {}
+status:
+  availableReplicas: 0
+  replicas: 0

@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: api
+    app.kubernetes.io/instance: rhobs
+    app.kubernetes.io/name: rhobs-gateway
+    app.kubernetes.io/part-of: rhobs
+    app.kubernetes.io/version: 1fb4dafb58f6158c832f307d8e37729f390f4f5a
+  name: rhobs-gateway
+  namespace: rhobs-production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: api
+      app.kubernetes.io/instance: rhobs
+      app.kubernetes.io/name: rhobs-gateway
+      app.kubernetes.io/part-of: rhobs
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: api
+        app.kubernetes.io/instance: rhobs
+        app.kubernetes.io/name: rhobs-gateway
+        app.kubernetes.io/part-of: rhobs
+        app.kubernetes.io/version: 1fb4dafb58f6158c832f307d8e37729f390f4f5a
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - rhobs-gateway
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - args:
+        - --web.listen=0.0.0.0:8080
+        - --web.internal.listen=0.0.0.0:8081
+        - --log.level=info
+        - --metrics.alertmanager.endpoint=http://alertmanager.rhobs-production.svc.cluster.local:9093
+        - --rbac.config=/etc/observatorium/rbac.yaml
+        - --tenants.config=/etc/observatorium/tenants.yaml
+        - --server.read-timeout=5m
+        - --metrics.read.endpoint=http://thanos-query-frontend-rhobs.rhobs-production.svc.cluster.local:9090
+        - --metrics.write.endpoint=http://thanos-receive-router-rhobs.rhobs-production.svc.cluster.local:19291
+        - --metrics.status.endpoint=http://thanos-query-rhobs.rhobs-production.svc.cluster.local:9090
+        - --logs.write-timeout=4m0s
+        - --logs.read.endpoint=http://observatorium-lokistack-query-frontend-http.rhobs-production.svc.cluster.local:3100
+        - --logs.tail.endpoint=http://observatorium-lokistack-query-frontend-http.rhobs-production.svc.cluster.local:3100
+        - --logs.write.endpoint=http://observatorium-lokistack-distributor-http.rhobs-production.svc.cluster.local:3100
+        - --probes.endpoint=http://synthetics-api.rhobs-production.svc.cluster.local:8080
+        image: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-observatorium-api:1fb4dafb58f6158c832f307d8e37729f390f4f5a
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /live
+            port: 8081
+            scheme: HTTP
+          periodSeconds: 30
+        name: observatorium-api
+        ports:
+        - containerPort: 8090
+          name: grpc-public
+        - containerPort: 8081
+          name: internal
+        - containerPort: 8080
+          name: public
+        readinessProbe:
+          failureThreshold: 12
+          httpGet:
+            path: /ready
+            port: 8081
+            scheme: HTTP
+          periodSeconds: 5
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/observatorium/rbac.yaml
+          name: rbac
+          readOnly: true
+          subPath: rbac.yaml
+        - mountPath: /etc/observatorium/tenants.yaml
+          name: tenants
+          readOnly: true
+          subPath: tenants.yaml
+      serviceAccountName: rhobs-gateway
+      volumes:
+      - configMap:
+          name: rhobs-gateway
+        name: rbac
+      - name: tenants
+        secret:
+          secretName: rhobs-gateway
+status: {}

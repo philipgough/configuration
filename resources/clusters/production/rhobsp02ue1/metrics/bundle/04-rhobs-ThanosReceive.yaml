@@ -1,0 +1,94 @@
+apiVersion: monitoring.thanos.io/v1alpha1
+kind: ThanosReceive
+metadata:
+  name: rhobs
+  namespace: rhobs-production
+spec:
+  ingesterSpec:
+    defaultObjectStorageConfig:
+      key: thanos.yaml
+      name: default-thanos-bucket
+      optional: false
+    hashrings:
+    - affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: thanos-receive-ingester
+                  app.kubernetes.io/instance: thanos-receive-ingester-rhobs-default
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      asyncForwardWorkerCount: 50
+      baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+      externalLabels:
+        replica: $(POD_NAME)
+      imagePullPolicy: IfNotPresent
+      logFormat: logfmt
+      logLevel: info
+      name: default
+      objectStorageConfig:
+        key: thanos.yaml
+        name: default-thanos-bucket
+        optional: false
+      replicas: 3
+      resourceRequirements:
+        requests:
+          cpu: "2"
+          memory: 15Gi
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      storage:
+        size: 10Gi
+      storeLimitsOptions: {}
+      tenancyConfig:
+        defaultTenantID: FB870BF3-9F3A-44FF-9BF7-D7A047A52F43
+        tenantHeader: THANOS-TENANT
+        tenantLabelName: tenant_id
+        tenantMatcherType: exact
+      tooFarInFutureTimeWindow: 5m
+      tsdbConfig:
+        retention: 1d
+      version: 0dcacf2a5108328d537dbcf59fcabc9b69f08a2b
+  routerSpec:
+    additionalArgs:
+    - "--receive.grpc-service-config={\n  \"loadBalancingPolicy\":\"round_robin\",\n
+      \ \"retryPolicy\": {\n    \"maxAttempts\": 0,\n    \"initialBackoff\": \"0.1s\",\n
+      \   \"backoffMultiplier\": 1,\n    \"retryableStatusCodes\": [\n  \t  \"UNAVAILABLE\"\n
+      \   ]\n  }\n}"
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: thanos-receive-router
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+    baseImage: quay.io/redhat-services-prod/rhobs-mco-tenant/rhobs-thanos
+    externalLabels:
+      receive: "true"
+    imagePullPolicy: IfNotPresent
+    logFormat: logfmt
+    logLevel: info
+    podDisruptionBudgetConfig:
+      enable: true
+    replicas: 3
+    replicationFactor: 3
+    resourceRequirements:
+      requests:
+        cpu: "1"
+        memory: 5Gi
+    securityContext:
+      seccompProfile:
+        type: RuntimeDefault
+    version: 0dcacf2a5108328d537dbcf59fcabc9b69f08a2b
+status:
+  routerStatus:
+    availableReplicas: 0
+    readyReplicas: 0
+    replicas: 0
+    unavailableReplicas: 0
+    updatedReplicas: 0

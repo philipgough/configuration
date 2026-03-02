@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+    prometheus: app-sre
+  name: synthetics-bb-exporter
+  namespace: openshift-customer-monitoring
+spec:
+  endpoints:
+  - honorLabels: true
+    interval: 30s
+    port: http
+  namespaceSelector:
+    matchNames:
+    - rhobs-production
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blackbox-exporter
