@@ -101,7 +101,11 @@ local tr = (import 'github.com/observatorium/token-refresher/jsonnet/lib/token-r
 
   service+: oauth.service,
 
-  deployment+: oauth.deployment,
+  deployment+: oauth.deployment {
+    spec+: {
+      replicas: '${{TOKEN_REFRESHER_REPLICAS}}',
+    },
+  },
 
   serviceMonitor+: {
     spec+: {
@@ -188,5 +192,6 @@ local tr = (import 'github.com/observatorium/token-refresher/jsonnet/lib/token-r
     { name: 'TOKEN_REFRESHER_IMAGE_TAG', value: 'master-2021-03-05-b34376b' },
     { name: 'TOKEN_REFRESHER_LOG_LEVEL', value: 'info' },
     { name: 'TOKEN_REFRESHER_SECRET_NAME', value: 'token-refresher-oidc' },
+    { name: 'TOKEN_REFRESHER_REPLICAS', value: '1' },
   ],
 }
