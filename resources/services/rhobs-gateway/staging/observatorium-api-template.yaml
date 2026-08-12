@@ -232,6 +232,12 @@ objects:
         subjects:
         - kind: user
           name: service-account-d13bc04a-2763-4b3b-9ccb-a264f5d64aa9
+      - name: 745a997b-24eb-4b5f-9f53-58e94c6bbc53
+        roles:
+        - telemeter-metrics-read
+        subjects:
+        - kind: user
+          name: service-account-745a997b-24eb-4b5f-9f53-58e94c6bbc53
       - name: 0174b0a8-649a-4a95-bdff-9592f41b0de4
         roles:
         - telemeter-metrics-read
@@ -254,6 +260,24 @@ objects:
         subjects:
         - kind: user
           name: service-account-aed46b58-abb5-4b1e-831f-a5678de691e0
+      - name: 1fc0f182-dfc0-40e2-a147-b768927d9c20
+        roles:
+        - rhtap-metrics-read
+        subjects:
+        - kind: user
+          name: service-account-1fc0f182-dfc0-40e2-a147-b768927d9c20
+      - name: 4819e9be-e3e0-42de-b4a6-231443107d8e
+        roles:
+        - rhtap-metrics-read
+        subjects:
+        - kind: user
+          name: service-account-4819e9be-e3e0-42de-b4a6-231443107d8e
+      - name: 44d9cf7d-69a9-4acd-88c2-dd66b338c1eb
+        roles:
+        - rhtap-metrics-write
+        subjects:
+        - kind: user
+          name: service-account-44d9cf7d-69a9-4acd-88c2-dd66b338c1eb
       - name: observatorium-rhel-read
         roles:
         - rhel-metrics-read

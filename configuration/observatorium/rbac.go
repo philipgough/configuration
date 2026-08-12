@@ -379,6 +379,18 @@ func GenerateRBAC() *ObservatoriumRBAC {
 		skipConventionCheck: true,
 	})
 
+	// obsint analytics read only prod
+	// Special request of extra read account.
+	// https://redhat.atlassian.net/browse/RHOBS-1703
+	attachBinding(&obsRBAC, BindingOpts{
+		name:                "745a997b-24eb-4b5f-9f53-58e94c6bbc53",
+		tenant:              telemeterTenant,
+		signals:             []Resource{MetricsResource},
+		perms:               []rbac.Permission{rbac.Read}, // Read only.
+		envs:                []env{productionEnv},
+		skipConventionCheck: true,
+	})
+
 	// rosa-core read/write
 	// Special request of extra read account.
 	attachBinding(&obsRBAC, BindingOpts{
