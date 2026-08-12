@@ -457,6 +457,30 @@ func GenerateRBAC() *ObservatoriumRBAC {
 		withConcreteName:    true,
 	})
 
+	// RHTAP - Konflux Devprod staging special read access request
+	// https://redhat.atlassian.net/browse/RHOBS-1699
+	attachBinding(&obsRBAC, BindingOpts{
+		name:                "7b8b11a7-17fa-4411-aef5-23096e130184",
+		tenant:              rhtapTenant,
+		signals:             []Resource{MetricsResource},
+		perms:               []rbac.Permission{rbac.Read},
+		envs:                []env{stagingEnv},
+		skipConventionCheck: true,
+		withConcreteName:    true,
+	})
+
+	// RHTAP - SPRE Alert production special read access request
+	// https://redhat.atlassian.net/browse/RHOBS-1699
+	attachBinding(&obsRBAC, BindingOpts{
+		name:                "7a0665fe-cdc7-4bed-9453-4f97211130c2",
+		tenant:              rhtapTenant,
+		signals:             []Resource{MetricsResource},
+		perms:               []rbac.Permission{rbac.Read},
+		envs:                []env{productionEnv},
+		skipConventionCheck: true,
+		withConcreteName:    true,
+	})
+
 	// RHEL
 	// Reader serviceaccount
 	attachBinding(&obsRBAC, BindingOpts{

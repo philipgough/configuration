@@ -1100,6 +1100,18 @@ objects:
         "subjects":
         - "kind": "user"
           "name": "service-account-44d9cf7d-69a9-4acd-88c2-dd66b338c1eb"
+      - "name": "7b8b11a7-17fa-4411-aef5-23096e130184"
+        "roles":
+        - "rhtap-metrics-read"
+        "subjects":
+        - "kind": "user"
+          "name": "service-account-7b8b11a7-17fa-4411-aef5-23096e130184"
+      - "name": "7a0665fe-cdc7-4bed-9453-4f97211130c2"
+        "roles":
+        - "rhtap-metrics-read"
+        "subjects":
+        - "kind": "user"
+          "name": "service-account-7a0665fe-cdc7-4bed-9453-4f97211130c2"
       - "name": "observatorium-rhel-read"
         "roles":
         - "rhel-metrics-read"
