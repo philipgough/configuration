@@ -157,6 +157,9 @@ objects:
           - --whitelist={__name__="cluster:kube_persistentvolume_plugin_type_counts:sum"}
           - --whitelist={__name__="cluster:kube_persistentvolumeclaim_resource_requests_storage_bytes:provisioner:sum"}
           - --whitelist={__name__="cluster:kubelet_volume_stats_used_bytes:provisioner:sum"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_features_applied:sum",name=~"sriov|ovs-dpdk|ovn-mapping|ovs-bond|ovs-patch|lldp|mptcp|static-route-rule|iface-name-refered-by-sriov-vf-id|mac-based-identifier"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_network_interfaces:sum",type=~"ethernet|linux-bridge|bond|vlan|ovs-bridge|ovs-interface|ovs-port|mac-vlan|vxlan|infiniband"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_routes:sum"}
           - --whitelist={__name__="cluster:log_collected_bytes_total:sum"}
           - --whitelist={__name__="cluster:log_logged_bytes_total:sum"}
           - --whitelist={__name__="cluster:mcd_nodes_with_unsupported_packages:count"}
@@ -167,6 +170,8 @@ objects:
           - --whitelist={__name__="cluster:network_attachment_definition_instances:max"}
           - --whitelist={__name__="cluster:node_instance_type_count:sum"}
           - --whitelist={__name__="cluster:openshift_route_info:tls_termination:sum"}
+          - --whitelist={__name__="cluster:ovnkube_clustermanager_cluster_user_defined_networks:max",role=~"Primary|Secondary",topology=~"Layer2|Layer3"}
+          - --whitelist={__name__="cluster:ovnkube_clustermanager_user_defined_networks:max",role=~"Primary|Secondary",topology=~"Layer2|Layer3"}
           - --whitelist={__name__="cluster:ovnkube_controller_admin_network_policies_db_objects:max",table_name=~"ACL|Address_Set"}
           - --whitelist={__name__="cluster:ovnkube_controller_admin_network_policies_rules:max",direction=~"Ingress|Egress",action=~"Pass|Allow|Deny"}
           - --whitelist={__name__="cluster:ovnkube_controller_baseline_admin_network_policies_db_objects:max",table_name=~"ACL|Address_Set"}
@@ -206,6 +211,7 @@ objects:
           - --whitelist={__name__="cnv_abnormal", reason=~"memory_working_set_delta_from_request|memory_rss_delta_from_request"}
           - --whitelist={__name__="code:apiserver_request_total:rate:sum"}
           - --whitelist={__name__="collector:node_scrape_collector_success:avg",collector=~"ethtool|cpufreq|tcpstat|netdev|netclass|buddyinfo|mountstats|ksmd|processes|systemd"}
+          - --whitelist={__name__="collector:node_scrape_collector_success:avg",collector=~"ethtool|cpufreq|tcpstat|netdev|netclass|buddyinfo|mountstats|ksmd|processes|systemd|softirqs|zoneinfo|dmmultipath|nvmesubsystem|interrupts"}
           - --whitelist={__name__="console_url"}
           - --whitelist={__name__="count:up0"}
           - --whitelist={__name__="count:up1"}
@@ -268,6 +274,7 @@ objects:
           - --whitelist={__name__="odf_system_objects_total", system_type="OCS", system_vendor="Red Hat"}
           - --whitelist={__name__="odf_system_raw_capacity_total_bytes"}
           - --whitelist={__name__="odf_system_raw_capacity_used_bytes"}
+          - --whitelist={__name__="ogx:api_info:max", api=~"agentic|inference|rag|responses|vector_io"}
           - --whitelist={__name__="olm_resolution_duration_seconds"}
           - --whitelist={__name__="ols:provider_model_configuration"}
           - --whitelist={__name__="ols:rest_api_query_calls_total:2xx"}
@@ -463,6 +470,9 @@ objects:
           - --whitelist={__name__="cluster:kube_persistentvolume_plugin_type_counts:sum"}
           - --whitelist={__name__="cluster:kube_persistentvolumeclaim_resource_requests_storage_bytes:provisioner:sum"}
           - --whitelist={__name__="cluster:kubelet_volume_stats_used_bytes:provisioner:sum"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_features_applied:sum",name=~"sriov|ovs-dpdk|ovn-mapping|ovs-bond|ovs-patch|lldp|mptcp|static-route-rule|iface-name-refered-by-sriov-vf-id|mac-based-identifier"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_network_interfaces:sum",type=~"ethernet|linux-bridge|bond|vlan|ovs-bridge|ovs-interface|ovs-port|mac-vlan|vxlan|infiniband"}
+          - --whitelist={__name__="cluster:kubernetes_nmstate_routes:sum"}
           - --whitelist={__name__="cluster:log_collected_bytes_total:sum"}
           - --whitelist={__name__="cluster:log_logged_bytes_total:sum"}
           - --whitelist={__name__="cluster:mcd_nodes_with_unsupported_packages:count"}
@@ -473,6 +483,8 @@ objects:
           - --whitelist={__name__="cluster:network_attachment_definition_instances:max"}
           - --whitelist={__name__="cluster:node_instance_type_count:sum"}
           - --whitelist={__name__="cluster:openshift_route_info:tls_termination:sum"}
+          - --whitelist={__name__="cluster:ovnkube_clustermanager_cluster_user_defined_networks:max",role=~"Primary|Secondary",topology=~"Layer2|Layer3"}
+          - --whitelist={__name__="cluster:ovnkube_clustermanager_user_defined_networks:max",role=~"Primary|Secondary",topology=~"Layer2|Layer3"}
           - --whitelist={__name__="cluster:ovnkube_controller_admin_network_policies_db_objects:max",table_name=~"ACL|Address_Set"}
           - --whitelist={__name__="cluster:ovnkube_controller_admin_network_policies_rules:max",direction=~"Ingress|Egress",action=~"Pass|Allow|Deny"}
           - --whitelist={__name__="cluster:ovnkube_controller_baseline_admin_network_policies_db_objects:max",table_name=~"ACL|Address_Set"}
@@ -512,6 +524,7 @@ objects:
           - --whitelist={__name__="cnv_abnormal", reason=~"memory_working_set_delta_from_request|memory_rss_delta_from_request"}
           - --whitelist={__name__="code:apiserver_request_total:rate:sum"}
           - --whitelist={__name__="collector:node_scrape_collector_success:avg",collector=~"ethtool|cpufreq|tcpstat|netdev|netclass|buddyinfo|mountstats|ksmd|processes|systemd"}
+          - --whitelist={__name__="collector:node_scrape_collector_success:avg",collector=~"ethtool|cpufreq|tcpstat|netdev|netclass|buddyinfo|mountstats|ksmd|processes|systemd|softirqs|zoneinfo|dmmultipath|nvmesubsystem|interrupts"}
           - --whitelist={__name__="console_url"}
           - --whitelist={__name__="count:up0"}
           - --whitelist={__name__="count:up1"}
@@ -574,6 +587,7 @@ objects:
           - --whitelist={__name__="odf_system_objects_total", system_type="OCS", system_vendor="Red Hat"}
           - --whitelist={__name__="odf_system_raw_capacity_total_bytes"}
           - --whitelist={__name__="odf_system_raw_capacity_used_bytes"}
+          - --whitelist={__name__="ogx:api_info:max", api=~"agentic|inference|rag|responses|vector_io"}
           - --whitelist={__name__="olm_resolution_duration_seconds"}
           - --whitelist={__name__="ols:provider_model_configuration"}
           - --whitelist={__name__="ols:rest_api_query_calls_total:2xx"}
